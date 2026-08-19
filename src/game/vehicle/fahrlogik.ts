@@ -8,10 +8,12 @@ import { telemetrie } from '../telemetrie';
 export interface FahrZustand {
   /** Aktueller (weich nachgeführter) Lenkeinschlag in Radiant. */
   lenkeinschlag: number;
+  /** Wie lange das Auto schon kopfüber und still liegt (Sekunden). */
+  kopfueberZeit: number;
 }
 
 export function neuerFahrZustand(): FahrZustand {
-  return { lenkeinschlag: 0 };
+  return { lenkeinschlag: 0, kopfueberZeit: 0 };
 }
 
 /** Begrenzt einen Wert auf [min, max]. */
@@ -26,6 +28,18 @@ function vorwaertsRichtung(q: { x: number; y: number; z: number; w: number }) {
     x: 2 * (q.x * q.z + q.w * q.y),
     y: 2 * (q.y * q.z - q.w * q.x),
     z: 1 - 2 * (q.x * q.x + q.y * q.y),
+  };
+}
+
+/**
+ * Berechnet aus einem Quaternion die lokale Hochachse (+Y) in Weltkoordinaten.
+ * Zeigt sie nach unten (y < 0), liegt das Auto auf dem Dach.
+ */
+function hochRichtung(q: { x: number; y: number; z: number; w: number }) {
+  return {
+    x: 2 * (q.x * q.y - q.w * q.z),
+    y: 1 - 2 * (q.x * q.x + q.z * q.z),
+    z: 2 * (q.y * q.z + q.w * q.x),
   };
 }
 
@@ -148,7 +162,36 @@ export function fahrschritt(
   }
 
   // ---------------------------------------------------------------
-  // 5. Sanfte Stabilisierung
+  // 5a. Luftlage
+  // ---------------------------------------------------------------
+  // Ohne Bodenkontakt richten wir das Auto sanft wieder waagerecht aus und
+  // dämpfen das Trudeln. Sonst landet man nach jedem Sprung über eine Kuppe
+  // auf dem Dach – und muss jedes Mal von Hand zurücksetzen.
+  let raederAmBoden = 0;
+  for (let i = 0; i < 4; i++) if (controller.wheelIsInContact(i)) raederAmBoden++;
+
+  const hoch = hochRichtung(body.rotation());
+
+  if (raederAmBoden === 0) {
+    const w = body.angvel();
+    // Drehachse, die die Hochachse des Autos zur Welt-Hochachse dreht:
+    // Kreuzprodukt aus lokaler Hochachse und (0, 1, 0)
+    const achseX = -hoch.z;
+    const achseZ = hoch.x;
+    const k = hilfen.luftAusrichtung * FAHRZEUG.masse * PHYSIK_DT;
+    const d = hilfen.luftDaempfung * FAHRZEUG.masse * PHYSIK_DT;
+    body.applyTorqueImpulse(
+      {
+        x: achseX * k - w.x * d,
+        y: -w.y * d * 0.3, // Gieren nur leicht dämpfen, damit man sich noch drehen darf
+        z: achseZ * k - w.z * d,
+      },
+      true,
+    );
+  }
+
+  // ---------------------------------------------------------------
+  // 5b. Sanfte Stabilisierung am Boden
   // ---------------------------------------------------------------
   // Ohne diese Hilfe dreht sich das Auto beim Handbremsen endlos im Kreis.
   // Sie bremst nur die Drehung, wenn der Schräglaufwinkel wirklich groß wird –
@@ -175,9 +218,14 @@ export function fahrschritt(
   telemetrie.tempoMs = tempo;
   telemetrie.tempoKmh = kmh;
   telemetrie.schraeglauf = schraeglauf;
-  let kontakt = 0;
-  for (let i = 0; i < 4; i++) if (controller.wheelIsInContact(i)) kontakt++;
-  telemetrie.bodenkontakt = kontakt;
+  telemetrie.bodenkontakt = raederAmBoden;
+
+  // Kopfüber und still? Dann Zeit sammeln – Car.tsx setzt danach zurück.
+  if (hoch.y < 0.2 && tempoAbs < 2) {
+    zustand.kopfueberZeit += PHYSIK_DT;
+  } else {
+    zustand.kopfueberZeit = 0;
+  }
   const p = body.translation();
   telemetrie.position.x = p.x;
   telemetrie.position.y = p.y;

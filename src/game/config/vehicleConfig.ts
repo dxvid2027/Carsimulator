@@ -143,6 +143,18 @@ export const FAHRZEUG = {
     handbremsFaktor: 1.3,
     /** Dämpfung der Drehbewegung durch Rapier selbst. */
     winkelDaempfung: 0.6,
+    /**
+     * Luftlage: Wie stark sich das Auto ohne Bodenkontakt wieder waagerecht
+     * dreht. Ohne diese Hilfe landet man nach jedem Sprung auf dem Dach.
+     */
+    luftAusrichtung: 3.0,
+    /** Dämpfung der Drehbewegung in der Luft (verhindert wildes Trudeln). */
+    luftDaempfung: 1.6,
+    /**
+     * Liegt das Auto so lange kopfüber und steht still, setzt es sich selbst
+     * zurück. 0 schaltet die Automatik ab (dann hilft nur noch Taste R).
+     */
+    autoResetSekunden: 3,
   },
 
   // ---------- Anzeige (nur HUD, keine Physik) ----------

@@ -1,10 +1,13 @@
-import { useRef } from 'react';
+import { useMemo, useRef } from 'react';
 import { Environment, Lightformer } from '@react-three/drei';
 import { Physics } from '@react-three/rapier';
 import type { Object3D } from 'three';
 import { PHYSIK_DT } from './config/vehicleConfig';
 import { Car } from './vehicle/Car';
-import { Ground } from './world/Ground';
+import { Terrain } from './world/Terrain';
+import { SunLight } from './world/SunLight';
+import { Weltgrenze } from './world/Weltgrenze';
+import { erzeugeTerrain } from './world/heightmap';
 import { ChaseCamera } from './camera/ChaseCamera';
 import { telemetrie } from './telemetrie';
 
@@ -21,24 +24,18 @@ export function Scene() {
   /** Das sichtbare Auto – die Kamera folgt diesem Objekt. */
   const autoRef = useRef<Object3D>(null);
 
+  /**
+   * Die Heightmap wird einmal berechnet und dann behalten.
+   * useMemo verhindert, dass sie bei jedem Render neu erzeugt wird –
+   * das würde 257 × 257 Höhenwerte pro Frame kosten.
+   */
+  const terrain = useMemo(() => erzeugeTerrain(), []);
+
   return (
     <>
       {/* ---------- Beleuchtung ---------- */}
       <hemisphereLight args={['#bcd7ff', '#4a4535', 0.55]} />
-      <directionalLight
-        position={[45, 60, 25]}
-        intensity={2.4}
-        castShadow
-        shadow-mapSize={[2048, 2048]}
-        shadow-bias={-0.0005}
-        // Der Schattenbereich muss das Auto umschließen. Klein halten = scharfe Schatten.
-        shadow-camera-left={-40}
-        shadow-camera-right={40}
-        shadow-camera-top={40}
-        shadow-camera-bottom={-40}
-        shadow-camera-near={1}
-        shadow-camera-far={160}
-      />
+      <SunLight ziel={autoRef} />
 
       {/*
         Environment ohne Datei: Die Lichtformen unten werden zu einer
@@ -54,7 +51,7 @@ export function Scene() {
 
       {/* Himmel/Nebel: blendet die Kante der Testebene aus */}
       <color attach="background" args={['#8fb4d8']} />
-      <fog attach="fog" args={['#8fb4d8', 90, 460]} />
+      <fog attach="fog" args={['#8fb4d8', 160, 900]} />
 
       {/* ---------- Physik ---------- */}
       {/*
@@ -63,8 +60,9 @@ export function Scene() {
         schnellen und langsamen Rechnern unterschiedlich verhalten.
       */}
       <Physics timeStep={PHYSIK_DT} interpolate debug={DEBUG}>
-        <Ground />
-        <Car followRef={autoRef} />
+        <Terrain daten={terrain} />
+        <Weltgrenze />
+        <Car followRef={autoRef} terrain={terrain} />
       </Physics>
 
       <ChaseCamera ziel={autoRef} />

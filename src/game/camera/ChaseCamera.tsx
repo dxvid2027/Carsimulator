@@ -125,8 +125,23 @@ export function ChaseCamera({ ziel }: ChaseCameraProps) {
       geglaettetesZiel.current.lerp(blickPunkt.current, 1 - Math.exp(-a.traegheitBlick * dt));
     }
 
-    // Boden-Durchdringung verhindern
-    if (camera.position.y < 0.6) camera.position.y = 0.6;
+    // Maximalabstand begrenzen.
+    // Bei niedriger Bildrate legt das Auto zwischen zwei Frames viele Meter
+    // zurück, und die weiche Nachführung würde immer weiter zurückfallen.
+    // Ohne diese Grenze sieht man das Auto auf langsamen Rechnern nur noch
+    // als winzigen Punkt.
+    const maxAbstand = a.versatz.length() * 1.6;
+    const abstand = camera.position.distanceTo(autoPos.current);
+    if (abstand > maxAbstand) {
+      camera.position
+        .sub(autoPos.current)
+        .multiplyScalar(maxAbstand / abstand)
+        .add(autoPos.current);
+    }
+
+    // Kamera nicht unter den Boden sinken lassen
+    const bodenAbstand = autoPos.current.y - 0.4;
+    if (camera.position.y < bodenAbstand) camera.position.y = bodenAbstand;
 
     camera.lookAt(geglaettetesZiel.current);
 

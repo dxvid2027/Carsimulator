@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import {
   CuboidCollider,
@@ -12,13 +12,16 @@ import { useDrivingInput } from '../input/useDrivingInput';
 import { useRaycastVehicle } from './useRaycastVehicle';
 import { fahrschritt, neuerFahrZustand } from './fahrlogik';
 import { CarModel, WheelModel } from './CarModel';
+import { hoeheBei, type Terraindaten } from '../world/heightmap';
 
 interface CarProps {
   /** Wird mit dem sichtbaren Auto-Objekt befüllt, damit die Kamera ihm folgen kann. */
   followRef: React.RefObject<Object3D | null>;
+  /** Höhendaten des Terrains – damit das Auto auf dem Boden startet. */
+  terrain: Terraindaten;
 }
 
-export function Car({ followRef }: CarProps) {
+export function Car({ followRef, terrain }: CarProps) {
   const chassisRef = useRef<RapierRigidBody>(null);
   const controllerRef = useRaycastVehicle(chassisRef);
   const { eingabe, aktualisieren } = useDrivingInput();
@@ -28,22 +31,41 @@ export function Car({ followRef }: CarProps) {
   const radAufhaengung = useRef<(Group | null)[]>([]);
   const radRollen = useRef<(Group | null)[]>([]);
 
+  /**
+   * Startposition auf Terrainhöhe. Die x/z-Werte kommen aus der Konfiguration,
+   * die Höhe wird aus der Heightmap gelesen – so passt der Start auch dann,
+   * wenn du die Landschaft änderst.
+   */
+  const startPosition = useMemo(() => {
+    const [x, , z] = FAHRZEUG.startPosition;
+    const bodenHoehe = hoeheBei(terrain, x, z);
+    // Etwas Luft lassen, damit das Auto sauber einfedert statt zu klemmen
+    return [x, bodenHoehe + FAHRZEUG.startPosition[1], z] as [number, number, number];
+  }, [terrain]);
+
   /** Setzt das Auto an den Start zurück (Taste R). */
   const zuruecksetzen = () => {
     const body = chassisRef.current;
     if (!body) return;
-    const [x, y, z] = FAHRZEUG.startPosition;
+    const [x, y, z] = startPosition;
     body.setTranslation({ x, y, z }, true);
     body.setRotation({ x: 0, y: 0, z: 0, w: 1 }, true);
     body.setLinvel({ x: 0, y: 0, z: 0 }, true);
     body.setAngvel({ x: 0, y: 0, z: 0 }, true);
     fahrZustand.current.lenkeinschlag = 0;
+    fahrZustand.current.kopfueberZeit = 0;
   };
 
   // Eingabe einmal pro Frame einlesen (vor der Physik, priority sorgt für die Reihenfolge)
   useFrame(() => {
     aktualisieren();
     if (eingabe.current.reset) zuruecksetzen();
+
+    // Automatischer Reset, wenn das Auto zu lange auf dem Dach liegt
+    const grenze = FAHRZEUG.hilfen.autoResetSekunden;
+    if (grenze > 0 && fahrZustand.current.kopfueberZeit > grenze) {
+      zuruecksetzen();
+    }
   }, -10);
 
   // Physikschritt: Kräfte setzen und das Fahrzeug aktualisieren
@@ -81,7 +103,7 @@ export function Car({ followRef }: CarProps) {
       ref={chassisRef}
       type="dynamic"
       colliders={false}
-      position={FAHRZEUG.startPosition}
+      position={startPosition}
       canSleep={false}
       angularDamping={FAHRZEUG.hilfen.winkelDaempfung}
       linearDamping={0}

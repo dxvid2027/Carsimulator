@@ -19,7 +19,7 @@ export default function App() {
       <Canvas
         shadows
         // Die Kamera wird ab dem ersten Frame von der ChaseCamera gesteuert
-        camera={{ position: [0, 4, -10], fov: 62, near: 0.3, far: 900 }}
+        camera={{ position: [0, 4, -10], fov: 62, near: 0.3, far: 2000 }}
         gl={{
           antialias: true,
           // ACES Filmic: filmische Tonwertkurve, verhindert ausgebrannte Lichter

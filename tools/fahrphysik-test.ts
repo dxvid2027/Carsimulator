@@ -199,7 +199,34 @@ console.log('\n=== Fahrphysik-Test ===\n');
   console.log(`   max. Schräglauf: ${max.toFixed(0)}° (Heck kommt ${max > 8 ? 'spürbar' : 'kaum'})\n`);
 }
 
-// --- 6. Links/Rechts-Symmetrie ---
+// --- 6. Luftlage: Sprung mit Drall ---
+{
+  console.log('6) Luftlage nach einem Sprung');
+  for (const drall of [1.5, 3, 5]) {
+    const w = welt();
+    absetzen(w);
+    while (kmh(w) < 90) schritt(w, { gas: 1 });
+    // Abheben und ins Trudeln bringen
+    w.body.applyImpulse({ x: 0, y: FAHRZEUG.masse * 7, z: 0 }, true);
+    w.body.applyTorqueImpulse(
+      { x: drall * FAHRZEUG.masse, y: 0, z: drall * 0.6 * FAHRZEUG.masse },
+      true,
+    );
+    let minAufrecht = 1;
+    for (let i = 0; i < 60 * 6; i++) {
+      schritt(w, { gas: 0.3 });
+      minAufrecht = Math.min(minAufrecht, aufrecht(w));
+    }
+    const gelandet = aufrecht(w);
+    console.log(
+      `   Drall ${drall}: tiefster Wert ${minAufrecht.toFixed(2)}, am Ende ${gelandet.toFixed(2)} ` +
+        `${gelandet > 0.8 ? '(steht auf den Rädern)' : '(liegt auf dem Dach)'}`,
+    );
+  }
+  console.log('');
+}
+
+// --- 7. Links/Rechts-Symmetrie ---
 {
   const links = welt();
   const rechts = welt();
@@ -211,7 +238,7 @@ console.log('\n=== Fahrphysik-Test ===\n');
   }
   const lx = links.body.translation().x;
   const rx = rechts.body.translation().x;
-  console.log('6) Symmetrie der Lenkung');
+  console.log('7) Symmetrie der Lenkung');
   console.log(`   lenken=+1 → x = ${lx.toFixed(1)} m (muss positiv sein = links)`);
   console.log(`   lenken=-1 → x = ${rx.toFixed(1)} m (muss negativ sein = rechts)`);
   const abweichung = Math.abs(Math.abs(lx) - Math.abs(rx));
