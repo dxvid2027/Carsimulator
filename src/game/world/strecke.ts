@@ -432,8 +432,6 @@ export function erzeugeNebenstrasse(
   /** Seitliche Auslenkung in der Mitte, damit die Straße nicht schnurgerade ist. */
   schwung = 90,
 ): Streckendaten {
-  const mitteX = (von.x + nach.x) / 2;
-  const mitteZ = (von.z + nach.z) / 2;
   // Senkrecht zur Verbindung auslenken
   const dx = nach.x - von.x;
   const dz = nach.z - von.z;
@@ -441,13 +439,24 @@ export function erzeugeNebenstrasse(
   const nx = -dz / laenge;
   const nz = dx / laenge;
 
+  /*
+    Die beiden mittleren Stützpunkte liegen bei einem und zwei Dritteln der
+    Strecke und weichen nach entgegengesetzten Seiten aus. So entsteht ein
+    weiches S.
+
+    Lägen beide an derselben Stelle in Längsrichtung (nur seitlich versetzt),
+    würde die Kurve dort einen Knoten schlagen – eine Schleife, die man gar
+    nicht durchfahren kann.
+  */
+  const bei = (t: number, seite: number) =>
+    new Vector3(
+      von.x + dx * t + nx * schwung * seite,
+      0,
+      von.z + dz * t + nz * schwung * seite,
+    );
+
   const kurve = new CatmullRomCurve3(
-    [
-      new Vector3(von.x, 0, von.z),
-      new Vector3(mitteX + nx * schwung, 0, mitteZ + nz * schwung),
-      new Vector3(mitteX - nx * schwung * 0.5, 0, mitteZ - nz * schwung * 0.5),
-      new Vector3(nach.x, 0, nach.z),
-    ],
+    [new Vector3(von.x, 0, von.z), bei(0.33, 1), bei(0.67, -0.6), new Vector3(nach.x, 0, nach.z)],
     false,
     'catmullrom',
     0.5,

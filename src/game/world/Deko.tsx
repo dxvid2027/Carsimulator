@@ -1,6 +1,7 @@
-import { useMemo } from 'react';
-import { CuboidCollider, RigidBody } from '@react-three/rapier';
-import { Euler, Matrix4, Quaternion, Vector3 } from 'three';
+import { useMemo, useRef } from 'react';
+import { useFrame } from '@react-three/fiber';
+import { CuboidCollider, CylinderCollider, RigidBody } from '@react-three/rapier';
+import { Euler, Group, Matrix4, Quaternion, Vector3 } from 'three';
 import { WELT, hoeheBei, steigungBei, type Terraindaten } from './heightmap';
 import { STRECKE, abstandZurStrecke, type Streckendaten } from './strecke';
 
@@ -84,6 +85,58 @@ function matrizen(liste: Platz[], hoehenVersatz: (p: Platz) => number) {
   });
 }
 
+/**
+ * Windmühle auf einer Anhöhe – ein Wahrzeichen, an dem man sich orientieren
+ * kann. Die Flügel drehen sich, das zieht den Blick auf sich und macht die
+ * Landschaft lebendig.
+ */
+function Windmuehle({ x, y, z }: { x: number; y: number; z: number }) {
+  const fluegel = useRef<Group>(null);
+  useFrame((_, delta) => {
+    if (fluegel.current) fluegel.current.rotation.z += delta * 0.55;
+  });
+
+  const turmHoehe = 13;
+  return (
+    <group position={[x, y, z]}>
+      {/* Turm: unten breit, oben schmal */}
+      <mesh position={[0, turmHoehe / 2, 0]} castShadow receiveShadow>
+        <cylinderGeometry args={[1.5, 2.6, turmHoehe, 12]} />
+        <meshStandardMaterial color="#d5cdbb" roughness={0.9} />
+      </mesh>
+      {/* Dach */}
+      <mesh position={[0, turmHoehe + 1.3, 0]} castShadow>
+        <coneGeometry args={[2.1, 2.8, 12]} />
+        <meshStandardMaterial color="#5c3a2c" roughness={0.9} flatShading />
+      </mesh>
+      {/* Flügelkreuz, leicht nach vorn geneigt wie bei echten Mühlen */}
+      <group ref={fluegel} position={[0, turmHoehe - 0.6, 2.4]} rotation={[0.12, 0, 0]}>
+        {[0, 1, 2, 3].map((i) => (
+          <group key={i} rotation={[0, 0, (i / 4) * Math.PI * 2]}>
+            <mesh position={[0, 4.4, 0]} castShadow>
+              <boxGeometry args={[0.85, 8.4, 0.16]} />
+              <meshStandardMaterial color="#e3dccb" roughness={0.85} />
+            </mesh>
+            <mesh position={[0, 4.4, 0.12]}>
+              <boxGeometry args={[0.14, 8.4, 0.1]} />
+              <meshStandardMaterial color="#6b4a35" roughness={0.9} />
+            </mesh>
+          </group>
+        ))}
+        {/* Nabe */}
+        <mesh rotation={[Math.PI / 2, 0, 0]} castShadow>
+          <cylinderGeometry args={[0.55, 0.55, 0.7, 10]} />
+          <meshStandardMaterial color="#4a3428" roughness={0.9} />
+        </mesh>
+      </group>
+
+      <RigidBody type="fixed" colliders={false}>
+        <CylinderCollider args={[turmHoehe / 2, 2.3]} position={[0, turmHoehe / 2, 0]} />
+      </RigidBody>
+    </group>
+  );
+}
+
 interface DekoProps {
   terrain: Terraindaten;
   strecke: Streckendaten;
@@ -144,8 +197,29 @@ export function Deko({ terrain, strecke }: DekoProps) {
     return haeuser;
   }, [terrain, strecke]);
 
+  /** Standort der Windmühle: die höchste erreichbare Kuppe abseits der Straße. */
+  const muehle = useMemo(() => {
+    const rnd = zufall(DEKO.keim + 77);
+    let beste = -Infinity;
+    let ort = { x: 0, y: 0, z: 0 };
+    for (let i = 0; i < 900; i++) {
+      const x = (rnd() - 0.5) * (WELT.groesse - 200);
+      const z = (rnd() - 0.5) * (WELT.groesse - 200);
+      if (abstandZurStrecke(strecke, x, z).distanz < 50) continue;
+      if (steigungBei(terrain, x, z) > 0.28) continue;
+      const h = hoeheBei(terrain, x, z);
+      if (h > beste) {
+        beste = h;
+        ort = { x, y: h, z };
+      }
+    }
+    return ort;
+  }, [terrain, strecke]);
+
   return (
     <>
+      <Windmuehle x={muehle.x} y={muehle.y} z={muehle.z} />
+
       {/* ---------- Felsen ---------- */}
       <instancedMesh
         args={[undefined, undefined, felsenMatrizen.length]}

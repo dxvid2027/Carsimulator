@@ -19,6 +19,7 @@ import { Road } from './world/Road';
 import { Leitplanken } from './world/Leitplanken';
 import { Baeume } from './world/Baeume';
 import { Deko } from './world/Deko';
+import { Offroad } from './world/Offroad';
 import { Sonne } from './world/Sonne';
 import { Heuballen } from './world/Heuballen';
 import { SunLight, SONNE } from './world/SunLight';
@@ -176,6 +177,7 @@ export function Scene({ pausiert, sparsam, onWeltFertig }: SceneProps) {
         <Baeume terrain={terrain} strecke={strecke} />
         <Heuballen terrain={terrain} strecke={strecke} />
         <Deko terrain={terrain} strecke={strecke} />
+        <Offroad terrain={terrain} strecke={strecke} />
         <Weltgrenze />
         <Car followRef={autoRef} strecke={strecke} />
       </Physics>

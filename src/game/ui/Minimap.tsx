@@ -4,6 +4,7 @@ import { rennen } from '../race/rennen';
 import { WELT, hoeheBei, type Terraindaten } from '../world/heightmap';
 import { STRECKE, type Streckendaten } from '../world/strecke';
 import { planeHaufen } from '../world/Heuballen';
+import { PISTEN_WEGE } from '../world/Offroad';
 
 /**
  * Karte – klein oben rechts oder groß über dem ganzen Bild (Taste M).
@@ -102,6 +103,12 @@ export function Minimap({ strecke, nebenstrassen = [], terrain, gross, onSchlies
     [nebenstrassen],
   );
 
+  /**
+   * Die Geländepisten. Sie werden ohne Höhen gezeichnet – für die Karte
+   * genügen die Stützpunkte, die auch die 3D-Welt benutzt.
+   */
+  const pisten = useMemo(() => PISTEN_WEGE(), []);
+
   /** Mittelpunkte der Heuballen-Haufen, damit man sie ansteuern kann. */
   const heuHaufen = useMemo(() => {
     const ballen = planeHaufen(terrain, strecke);
@@ -184,7 +191,15 @@ export function Minimap({ strecke, nebenstrassen = [], terrain, gross, onSchlies
         ctx.stroke();
       };
 
-      // Nebenstraßen zuerst, damit der Rundkurs oben liegt
+      // Geländepisten ganz unten: gestrichelt und erdfarben
+      ctx.save();
+      ctx.setLineDash([6, 5]);
+      for (const w of pisten) {
+        zeichneLinie(w, Math.max(1.6, 4 * massstab), '#8a7351', false);
+      }
+      ctx.restore();
+
+      // Nebenstraßen darüber, damit der Rundkurs ganz oben liegt
       const nebenBreite = Math.max(2, STRECKE.breite * 0.7 * massstab);
       for (const n of nebenLinien) {
         zeichneLinie(n, nebenBreite + 2, 'rgba(24, 30, 38, 0.8)', false);
@@ -250,7 +265,7 @@ export function Minimap({ strecke, nebenstrassen = [], terrain, gross, onSchlies
     };
     id = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(id);
-  }, [gross, groesse, gelaende, linie, nebenLinien, heuHaufen]);
+  }, [gross, groesse, gelaende, linie, nebenLinien, pisten, heuHaufen]);
 
   if (gross) {
     return (
@@ -260,6 +275,7 @@ export function Minimap({ strecke, nebenstrassen = [], terrain, gross, onSchlies
           <div className="karte-legende">
             <span><i className="punkt strasse" /> Road</span>
             <span><i className="punkt tor" /> Race gate</span>
+            <span><i className="punkt piste" /> Dirt trail</span>
             <span><i className="punkt heu" /> Hay bales</span>
             <span><i className="punkt auto" /> You</span>
           </div>

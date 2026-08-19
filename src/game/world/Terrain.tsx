@@ -7,6 +7,7 @@ import {
   PlaneGeometry,
   RepeatWrapping,
   SRGBColorSpace,
+  Vector2,
 } from 'three';
 import { WELT, ZELLE, type Terraindaten } from './heightmap';
 
@@ -26,73 +27,149 @@ const KACHELN = 4;
 const DETAIL_METER = 10;
 
 /**
- * Feine Detailtextur, im Code erzeugt (kein Download).
+ * Boden-Detailtextur, im Code erzeugt (kein Download).
  *
  * Die Einfärbung über Vertex-Farben ist großflächig – aus der Nähe sähe der
  * Boden ohne diese Textur wie eine glatte grüne Fläche aus. Die Textur wird
  * mit der Vertex-Farbe multipliziert, deshalb liegen ihre Helligkeiten nahe
- * bei 1 (sie dunkelt nur leicht ab, statt eine eigene Farbe zu setzen).
+ * bei 1: Sie moduliert nur, statt eine eigene Farbe zu setzen.
+ *
+ * Sie wird auf mehreren Größenstufen aufgebaut – grobe Flecken für die
+ * Struktur aus der Ferne, feine Halme für den Nahbereich. Eine einzige
+ * Rauschstufe sieht immer nach Fernsehrauschen aus.
+ *
+ * Gleichzeitig entsteht eine passende Normal Map: Sie täuscht der Beleuchtung
+ * kleine Unebenheiten vor, ohne dass dafür Dreiecke nötig wären. Erst dadurch
+ * bekommt der Boden im Streiflicht Tiefe.
  */
-function macheDetailTextur() {
-  const groesse = 256;
+function macheBodenTexturen() {
+  const groesse = 512;
   const c = document.createElement('canvas');
   c.width = c.height = groesse;
   const ctx = c.getContext('2d')!;
-  const bild = ctx.createImageData(groesse, groesse);
 
-  for (let i = 0; i < groesse * groesse; i++) {
-    // Grobkörniges Rauschen zwischen ca. 190 und 255
-    const wert = 190 + Math.floor(Math.random() * 66);
-    bild.data[i * 4] = wert;
-    bild.data[i * 4 + 1] = wert;
-    bild.data[i * 4 + 2] = wert;
-    bild.data[i * 4 + 3] = 255;
-  }
-  ctx.putImageData(bild, 0, 0);
+  // Grundton
+  ctx.fillStyle = '#b8b8b8';
+  ctx.fillRect(0, 0, groesse, groesse);
 
-  // Ein paar dunklere Flecken für etwas Struktur.
-  // Jeder Fleck wird 9-mal gezeichnet (auch versetzt um ±Kantenlänge), damit
-  // Flecken am Rand auf der gegenüberliegenden Seite fortgesetzt werden.
-  // Sonst hätte die Textur an jeder Wiederholung eine sichtbare Naht.
-  ctx.globalAlpha = 0.16;
-  for (let i = 0; i < 260; i++) {
-    ctx.fillStyle = Math.random() > 0.5 ? '#000' : '#fff';
-    const r = 3 + Math.random() * 14;
-    const cx = Math.random() * groesse;
-    const cy = Math.random() * groesse;
+  /** Zeichnet einen Fleck neunmal, damit die Kachel nahtlos aneinanderpasst. */
+  const umlaufend = (zeichne: (dx: number, dy: number) => void) => {
     for (const dx of [-groesse, 0, groesse]) {
-      for (const dy of [-groesse, 0, groesse]) {
-        ctx.beginPath();
-        ctx.arc(cx + dx, cy + dy, r, 0, Math.PI * 2);
-        ctx.fill();
-      }
+      for (const dy of [-groesse, 0, groesse]) zeichne(dx, dy);
+    }
+  };
+
+  // Grobe Flecken: Struktur, die man auch aus 50 m noch sieht
+  ctx.globalAlpha = 0.1;
+  for (let i = 0; i < 90; i++) {
+    ctx.fillStyle = Math.random() > 0.5 ? '#000' : '#fff';
+    const r = 26 + Math.random() * 70;
+    const x = Math.random() * groesse;
+    const y = Math.random() * groesse;
+    umlaufend((dx, dy) => {
+      ctx.beginPath();
+      ctx.arc(x + dx, y + dy, r, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  }
+
+  // Mittlere Büschel
+  ctx.globalAlpha = 0.14;
+  for (let i = 0; i < 420; i++) {
+    ctx.fillStyle = Math.random() > 0.45 ? '#3a4a2a' : '#e8f0d8';
+    const r = 5 + Math.random() * 15;
+    const x = Math.random() * groesse;
+    const y = Math.random() * groesse;
+    umlaufend((dx, dy) => {
+      ctx.beginPath();
+      ctx.arc(x + dx, y + dy, r, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  }
+
+  // Feine Halme
+  ctx.globalAlpha = 0.5;
+  ctx.lineCap = 'round';
+  for (let i = 0; i < 5200; i++) {
+    const hell = Math.random() > 0.5;
+    ctx.strokeStyle = hell ? 'rgba(232, 240, 212, 0.5)' : 'rgba(48, 60, 34, 0.5)';
+    ctx.lineWidth = 0.7 + Math.random() * 1.1;
+    const x = Math.random() * groesse;
+    const y = Math.random() * groesse;
+    const laenge = 3 + Math.random() * 8;
+    const winkel = Math.random() * Math.PI * 2;
+    umlaufend((dx, dy) => {
+      ctx.beginPath();
+      ctx.moveTo(x + dx, y + dy);
+      ctx.lineTo(x + dx + Math.cos(winkel) * laenge, y + dy + Math.sin(winkel) * laenge);
+      ctx.stroke();
+    });
+  }
+  ctx.globalAlpha = 1;
+
+  const farbe = new CanvasTexture(c);
+  farbe.wrapS = farbe.wrapT = RepeatWrapping;
+  farbe.colorSpace = SRGBColorSpace;
+  farbe.anisotropy = 8;
+
+  /*
+    Normal Map aus der Helligkeit der Farbtextur ableiten.
+
+    Dunkle Stellen werden als Vertiefung gelesen, helle als Erhebung. Das ist
+    physikalisch nicht exakt, sieht bei Gras und Erde aber überzeugend aus und
+    kostet nichts, weil das Bild ohnehin schon da ist.
+  */
+  const quelle = ctx.getImageData(0, 0, groesse, groesse);
+  const nc = document.createElement('canvas');
+  nc.width = nc.height = groesse;
+  const nctx = nc.getContext('2d')!;
+  const ziel = nctx.createImageData(groesse, groesse);
+  const hell = (x: number, y: number) => {
+    const xi = ((x % groesse) + groesse) % groesse;
+    const yi = ((y % groesse) + groesse) % groesse;
+    return quelle.data[(yi * groesse + xi) * 4] / 255;
+  };
+  const staerke = 2.6;
+  for (let y = 0; y < groesse; y++) {
+    for (let x = 0; x < groesse; x++) {
+      const dx = (hell(x + 1, y) - hell(x - 1, y)) * staerke;
+      const dy = (hell(x, y + 1) - hell(x, y - 1)) * staerke;
+      // Normale aus dem Gefälle, dann von -1..1 auf 0..255 bringen
+      const laenge = Math.hypot(-dx, -dy, 1);
+      const i = (y * groesse + x) * 4;
+      ziel.data[i] = ((-dx / laenge) * 0.5 + 0.5) * 255;
+      ziel.data[i + 1] = ((-dy / laenge) * 0.5 + 0.5) * 255;
+      ziel.data[i + 2] = ((1 / laenge) * 0.5 + 0.5) * 255;
+      ziel.data[i + 3] = 255;
     }
   }
+  nctx.putImageData(ziel, 0, 0);
+  const normal = new CanvasTexture(nc);
+  normal.wrapS = normal.wrapT = RepeatWrapping;
+  normal.anisotropy = 8;
 
-  const tex = new CanvasTexture(c);
-  tex.wrapS = tex.wrapT = RepeatWrapping;
-  /*
-    Die Wiederholung MUSS eine ganze Zahl sein.
-    Die UV-Koordinaten jeder Kachel laufen von 0 bis 1. Bei einem krummen Wert
-    (vorher 31,25) beginnt das Muster an jeder Kachelkante wieder von vorn und
-    man sieht ein Gitter aus Nähten im Boden.
-    250 m Kachelgröße / 10 m Texturgröße = 25 – geht glatt auf.
-  */
   const kachelMeter = WELT.groesse / KACHELN;
   const wiederholungen = Math.round(kachelMeter / DETAIL_METER);
-  tex.repeat.set(wiederholungen, wiederholungen);
-  tex.colorSpace = SRGBColorSpace;
-  tex.anisotropy = 8;
-  return tex;
+  farbe.repeat.set(wiederholungen, wiederholungen);
+  normal.repeat.set(wiederholungen, wiederholungen);
+
+  return { farbe, normal };
 }
 
 /** Farben nach Höhe und Steilheit. */
 const FARBEN = {
-  tal: new Color('#4a5c32'),
-  wiese: new Color('#5e7239'),
-  hang: new Color('#6b6a4e'),
-  fels: new Color('#6e6960'),
-  gipfel: new Color('#8a8578'),
+  /** Feuchte Senken: dunkles, sattes Grün. */
+  tal: new Color('#3d5228'),
+  /** Wiese in mittlerer Lage. */
+  wiese: new Color('#5a7034'),
+  /** Trockeneres Gras an den Hängen. */
+  hang: new Color('#7d7a48'),
+  /** Nackter Fels an steilen Stellen. */
+  fels: new Color('#6a6259'),
+  /** Ausgeblichene Kuppen. */
+  gipfel: new Color('#948a6c'),
+  /** Erde, wo Gras nicht mehr wächst. */
+  erde: new Color('#6b5439'),
 };
 
 /**
@@ -184,8 +261,17 @@ function baueKachel(daten: Terraindaten, kachelX: number, kachelZ: number) {
     } else {
       farbe.copy(FARBEN.hang).lerp(FARBEN.gipfel, (hoehenAnteil - 0.72) / 0.28);
     }
-    // Steile Stellen werden felsig – dort wächst kein Gras
-    farbe.lerp(FARBEN.fels, steil * 0.85);
+    /*
+      Steilere Stellen: erst wird das Gras dünner und die Erde kommt durch,
+      ganz steil steht nackter Fels. Der Zwischenschritt über die Erdfarbe ist
+      der Unterschied zwischen "grün mit grauen Flecken" und einer Landschaft,
+      die man glaubt.
+    */
+    if (steil < 0.5) {
+      farbe.lerp(FARBEN.erde, (steil / 0.5) * 0.55);
+    } else {
+      farbe.copy(farbe).lerp(FARBEN.erde, 0.55).lerp(FARBEN.fels, (steil - 0.5) / 0.5);
+    }
 
     farben[i * 3] = farbe.r;
     farben[i * 3 + 1] = farbe.g;
@@ -204,7 +290,9 @@ interface TerrainProps {
 }
 
 export function Terrain({ daten }: TerrainProps) {
-  const detail = useMemo(() => macheDetailTextur(), []);
+  const detail = useMemo(() => macheBodenTexturen(), []);
+  /** Einmal erzeugen – three.js erwartet hier einen Vector2. */
+  const normalStaerke = useMemo(() => new Vector2(0.85, 0.85), []);
 
   const kacheln = useMemo(() => {
     const liste: { geo: PlaneGeometry; versatzX: number; versatzZ: number; key: string }[] = [];
@@ -253,7 +341,15 @@ export function Terrain({ daten }: TerrainProps) {
           */
           castShadow={false}
         >
-          <meshStandardMaterial map={detail} vertexColors roughness={0.95} metalness={0} />
+          <meshStandardMaterial
+            map={detail.farbe}
+            normalMap={detail.normal}
+            // Stärke der vorgetäuschten Unebenheiten
+            normalScale={normalStaerke}
+            vertexColors
+            roughness={0.98}
+            metalness={0}
+          />
         </mesh>
       ))}
     </RigidBody>

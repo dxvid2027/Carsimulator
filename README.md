@@ -2,7 +2,7 @@
 
 3D-Open-World-Fahrspiel im Browser.
 
-**Stand: Phase 5 – offene Welt mit Geländewagen, Heuballen, Minikarte und optionalem Rennen.**
+**Stand: Phase 6 – offene Welt mit Geländepisten, Sprungrampen, Felsenfeld, Dorf und optionalem Rennen.**
 
 Grundzustand ist **freies Fahren**: keine Uhr, keine Vorgaben, fahr wohin du
 willst. Wer mag, startet an einem markierten Tor auf der Straße ein Rennen über
@@ -39,7 +39,9 @@ erst nach einem Klick zuverlässig Tastatur-Fokus.
 | `A` `D` / `←` `→` | Lenken |
 | `Leertaste` | Handbremse (Drift) |
 | `C` | Kamera: Chase → Close → Cockpit → Overview |
+| `T` | Auf der Stelle um 180° wenden |
 | `R` | Auto zurücksetzen |
+| `M` | Karte groß / wieder klein |
 | `E` | Rennen starten (im Startbereich) |
 | `Esc` / `P` | Pause |
 
@@ -125,8 +127,14 @@ Jeder weitere Push auf den Branch baut die Seite automatisch neu.
 - **Heuballen-Haufen** neben der Strecke: mehrere Rundballen nebeneinander und
   gestapelt. Sie sind bewegliche Körper – man fährt hindurch und treibt sie
   auseinander.
-- **Minikarte** oben rechts mit der ganzen Welt, dem eigenen Standort samt
-  Blickrichtung und dem Renn-Tor.
+- **Karte** oben rechts, mit **M** groß aufklappbar: eingefärbtes Gelände,
+  Rundkurs, Nebenstraßen, Geländepisten, Heuballen und Renn-Tor.
+- **Gelände**: drei Schotterpisten, die dem Boden mit allen Bodenwellen folgen
+  (bewusst nicht geglättet – genau das macht Offroad aus), Sprungrampen zum
+  Abheben und ein Felsenfeld zum Drüberklettern.
+- **Landschaft**: Felsen, Büsche, ein kleines Dorf mit Häusern, eine Windmühle
+  mit drehenden Flügeln als Wahrzeichen und eine sichtbare Sonne.
+- **Zwei Nebenstraßen** quer über die Karte, ebenfalls ins Terrain geschnitten.
 - **Optionales Rennen** mit Kontrollpunkten, Rundenzeiten und Bestzeit.
 - **Luftlagen-Stabilisierung** – nach Sprüngen landet das Auto wieder auf den
   Rädern; bleibt es doch liegen, setzt es sich nach 3 s selbst zurück.
@@ -160,6 +168,9 @@ src/
     world/
       heightmap.ts          Prozedurale Höhendaten + Höhenabfrage
       Heuballen.tsx         Bewegliche Heuballen in Haufen
+      Offroad.tsx           Schotterpisten, Sprungrampen, Felsenfeld
+      Deko.tsx              Felsen, Büsche, Dorf, Windmühle
+      Sonne.tsx             Sichtbare Sonnenscheibe
       strecke.ts            Rundkurs erzeugen und ins Terrain einschneiden
       Terrain.tsx           Sichtbares Terrain (Kacheln) + Heightfield-Kollider
       Road.tsx              Sichtbares Straßenband
@@ -208,7 +219,8 @@ npm run physik
 |---|---|
 | 0–100 km/h | 5,78 s |
 | Topspeed | 196 km/h |
-| Bremsweg 100–0 km/h | 15,9 m |
+| Bremsweg 100–0 km/h | 25,8 m (1,5 g) |
+| Nicken beim Bremsen | 1,1°, Räder bleiben am Boden |
 | Dauerkurve 80 km/h | stabil, kippt nicht |
 | Handbremsen-Drift | bis 41°, fängt sich wieder |
 | Luftlage nach Sprung | richtet sich auf, landet auf den Rädern |
@@ -336,7 +348,10 @@ Zeiten wären falsch. Sie misst deshalb echte Zeit (siehe `RennenTakt` in
 - **Rennen ändern:** `RENNEN_EINSTELLUNGEN` in `src/game/race/rennen.ts`
   (Rundenzahl, Anzahl Kontrollpunkte, Lage der Startzone).
 - **Heuballen ändern:** `HAUFEN` in `src/game/world/Heuballen.tsx`
-  (Anzahl der Haufen, Ballen je Haufen, Gewicht).
+  (Anzahl der Haufen, Ballen je Haufen, Gewicht, Wiederaufbauzeit).
+- **Gelände ändern:** `OFFROAD` und `PISTEN_WEGE()` in
+  `src/game/world/Offroad.tsx` (Pistenverlauf, Rampen, Felsblöcke).
+- **Landschaft ändern:** `DEKO` in `src/game/world/Deko.tsx`.
 - **Logo ändern:** `src/game/ui/Logo.tsx` (SVG im Code) und das Tab-Symbol in
   `index.html`.
 
