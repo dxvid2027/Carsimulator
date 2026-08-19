@@ -20,11 +20,19 @@ import { Leitplanken } from './world/Leitplanken';
 import { Baeume } from './world/Baeume';
 import { Deko } from './world/Deko';
 import { Offroad } from './world/Offroad';
+import { Stuntpark } from './world/Stuntpark';
+import {
+  STUNTPARK,
+  dorfOrt,
+  felsenfeldOrt,
+  stuntparkOrt,
+  windmuehleOrt,
+} from './world/orte';
 import { Sonne } from './world/Sonne';
 import { Heuballen } from './world/Heuballen';
 import { SunLight, SONNE } from './world/SunLight';
 import { Weltgrenze } from './world/Weltgrenze';
-import { erzeugeTerrain, type Terraindaten } from './world/heightmap';
+import { ebneFlaeche, erzeugeTerrain, type Terraindaten } from './world/heightmap';
 import { erzeugeWelt, STRECKE, type Streckendaten } from './world/strecke';
 import { baueStrassennetz, type Strassennetz } from './world/strassennetz';
 import { OFFROAD, PISTEN_WEGE } from './world/Offroad';
@@ -68,6 +76,20 @@ if (import.meta.env.DEV) {
   const w = window as unknown as { telemetrie: typeof telemetrie; rennen: typeof rennen };
   w.telemetrie = telemetrie;
   w.rennen = rennen;
+}
+
+/** Im Entwicklungsmodus die besonderen Orte in der Konsole bereitstellen. */
+function OrteFuerEntwicklung({ terrain, netz }: { terrain: Terraindaten; netz: Strassennetz }) {
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    (window as unknown as { orte: unknown }).orte = {
+      stuntpark: stuntparkOrt(terrain, netz),
+      dorf: dorfOrt(terrain, netz),
+      windmuehle: windmuehleOrt(terrain, netz),
+      felsenfeld: felsenfeldOrt(terrain, netz),
+    };
+  }, [terrain, netz]);
+  return null;
 }
 
 /**
@@ -159,6 +181,17 @@ export function Scene({ pausiert, sparsam, onWeltFertig }: SceneProps) {
       })),
     ]);
 
+    /*
+      Der Stuntpark bekommt ebenen Boden.
+
+      Rampen, Plattform und Container sind gerade Körper. Stehen sie im Hang,
+      hängt eine Ecke in der Luft und man springt daneben. Deshalb wird die
+      Fläche VOR dem Bau des Kollisionskörpers eingeebnet – danach wäre es zu
+      spät, weil das Terrain-Mesh und die Physik die alten Höhen behalten.
+    */
+    const park = stuntparkOrt(t, netz);
+    ebneFlaeche(t, park.x, park.z, STUNTPARK.radius, STUNTPARK.uebergang);
+
     return { terrain: t, strecke: s, nebenstrassen: n, netz };
   }, []);
 
@@ -204,6 +237,7 @@ export function Scene({ pausiert, sparsam, onWeltFertig }: SceneProps) {
       />
 
       <Sonne />
+      <OrteFuerEntwicklung terrain={terrain} netz={netz} />
 
       {/* Nebel in der Farbe des Horizonts, damit die Kartenkante verschwimmt */}
       <fog attach="fog" args={['#c8d6e2', 340, 1250]} />
@@ -223,8 +257,9 @@ export function Scene({ pausiert, sparsam, onWeltFertig }: SceneProps) {
         <Leitplanken strecke={strecke} terrain={terrain} netz={netz} />
         <Baeume terrain={terrain} netz={netz} />
         <Heuballen terrain={terrain} strecke={strecke} netz={netz} />
-        <Deko terrain={terrain} strecke={strecke} netz={netz} />
+        <Deko terrain={terrain} netz={netz} />
         <Offroad terrain={terrain} strecke={strecke} netz={netz} />
+        <Stuntpark terrain={terrain} netz={netz} />
         <Weltgrenze />
         <Car followRef={autoRef} strecke={strecke} />
       </Physics>

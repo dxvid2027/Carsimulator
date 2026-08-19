@@ -173,6 +173,68 @@ export function hoeheBei(daten: Terraindaten, x: number, z: number): number {
   return (h00 * (1 - fx) + h10 * fx) * (1 - fz) + (h01 * (1 - fx) + h11 * fx) * fz;
 }
 
+/**
+ * Ebnet eine kreisrunde Fläche ein.
+ *
+ * Wird für den Stuntpark gebraucht: Rampen und Plattformen sind starre
+ * Bauteile. Stehen sie im Hang, hängt eine Ecke in der Luft und die
+ * gegenüberliegende steckt im Boden. Auf einer geebneten Fläche sitzt alles
+ * sauber auf.
+ *
+ * Verändert `terrain.hoehen` direkt und muss deshalb VOR dem Erzeugen des
+ * Kollisionskörpers aufgerufen werden.
+ */
+export function ebneFlaeche(
+  daten: Terraindaten,
+  mittelpunktX: number,
+  mittelpunktZ: number,
+  radius: number,
+  /** Über diese zusätzliche Breite läuft die Fläche ins Gelände aus. */
+  uebergang: number,
+): number {
+  const { hoehen, aufloesung, groesse } = daten;
+  const punkte = aufloesung + 1;
+  const zielhoehe = hoeheBei(daten, mittelpunktX, mittelpunktZ);
+  const zelle = groesse / aufloesung;
+  const reichweite = Math.ceil((radius + uebergang) / zelle) + 1;
+
+  const mittigX = Math.round((mittelpunktX / groesse + 0.5) * aufloesung);
+  const mittigZ = Math.round((mittelpunktZ / groesse + 0.5) * aufloesung);
+
+  for (let ix = mittigX - reichweite; ix <= mittigX + reichweite; ix++) {
+    if (ix < 0 || ix >= punkte) continue;
+    const weltX = (ix / aufloesung - 0.5) * groesse;
+    for (let iz = mittigZ - reichweite; iz <= mittigZ + reichweite; iz++) {
+      if (iz < 0 || iz >= punkte) continue;
+      const weltZ = (iz / aufloesung - 0.5) * groesse;
+      const d = Math.hypot(weltX - mittelpunktX, weltZ - mittelpunktZ);
+      if (d > radius + uebergang) continue;
+
+      let anteil: number;
+      if (d <= radius) {
+        anteil = 1;
+      } else {
+        const t = 1 - (d - radius) / uebergang;
+        anteil = t * t * (3 - 2 * t);
+      }
+      const i = iz + ix * punkte;
+      hoehen[i] = hoehen[i] * (1 - anteil) + zielhoehe * anteil;
+    }
+  }
+
+  // Min/Max stimmen nach dem Einebnen nicht mehr
+  let min = Infinity;
+  let max = -Infinity;
+  for (let i = 0; i < hoehen.length; i++) {
+    if (hoehen[i] < min) min = hoehen[i];
+    if (hoehen[i] > max) max = hoehen[i];
+  }
+  daten.minHoehe = min;
+  daten.maxHoehe = max;
+
+  return zielhoehe;
+}
+
 /** Steigung (0 = eben, 1 = senkrecht) an einer Weltposition. */
 export function steigungBei(daten: Terraindaten, x: number, z: number): number {
   const d = ZELLE;

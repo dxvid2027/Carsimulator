@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import {
   CuboidCollider,
@@ -103,6 +103,29 @@ export function Car({ followRef, strecke }: CarProps) {
     body.setAngvel({ x: 0, y: 0, z: 0 }, true);
     fahrZustand.current.lenkeinschlag = 0;
   };
+
+  /*
+    Nur im Entwicklungsmodus: Das Auto per Konsole an eine Stelle setzen.
+
+    Damit lassen sich weit entfernte Ecken der Welt (Stuntpark, Felsenfeld)
+    prüfen, ohne erst zwei Minuten dorthin zu fahren.
+    Aufruf in der Browser-Konsole:
+      beameAuto(orte.stuntpark.x, orte.stuntpark.y, orte.stuntpark.z)
+  */
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    (window as unknown as { beameAuto: unknown }).beameAuto = (
+      x: number,
+      y: number,
+      z: number,
+    ) => {
+      const body = chassisRef.current;
+      if (!body) return;
+      body.setTranslation({ x, y: y + 3, z }, true);
+      body.setLinvel({ x: 0, y: 0, z: 0 }, true);
+      body.setAngvel({ x: 0, y: 0, z: 0 }, true);
+    };
+  }, []);
 
   /** Verhindert, dass ein gehaltener Tastendruck dauernd auslöst. */
   const wendenGedrueckt = useRef(false);

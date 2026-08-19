@@ -12,8 +12,9 @@ import {
   Vector3,
 } from 'three';
 import { WELT, hoeheBei, steigungBei, type Terraindaten } from './heightmap';
-import { abstandZurStrecke, type Streckendaten } from './strecke';
+import type { Streckendaten } from './strecke';
 import type { Strassennetz } from './strassennetz';
+import { bebautesGebiet, felsenfeldOrt } from './orte';
 
 /**
  * Alles fürs Gelände: Schotterpisten, Sprungrampen und ein Felsenfeld.
@@ -262,7 +263,7 @@ export function Offroad({ terrain, strecke, netz }: OffroadProps) {
       const p = alle[Math.floor(rnd() * alle.length)];
       if (!p) break;
       if (steigungBei(terrain, p.x, p.z) > 0.22) continue;
-      if (abstandZurStrecke(strecke, p.x, p.z).distanz < 40) continue;
+      if (netz.randabstand(p.x, p.z) < 30) continue;
       if (liste.some((r) => Math.hypot(r.x - p.x, r.z - p.z) < 90)) continue;
       liste.push({
         x: p.x,
@@ -280,21 +281,8 @@ export function Offroad({ terrain, strecke, netz }: OffroadProps) {
   /** Felsenfeld: große Blöcke zum Drüberklettern. */
   const felsenfeld = useMemo(() => {
     const rnd = zufall(OFFROAD.keim + 99);
-    // Eine Stelle abseits der Straße suchen
-    let mitte = { x: 0, z: 0 };
-    let beste = -Infinity;
-    for (let i = 0; i < 700; i++) {
-      const x = (rnd() - 0.5) * (WELT.groesse - 240);
-      const z = (rnd() - 0.5) * (WELT.groesse - 240);
-      const d = abstandZurStrecke(strecke, x, z).distanz;
-      if (d < 70) continue;
-      if (netz.randabstand(x, z) < 55) continue;
-      const punktzahl = steigungBei(terrain, x, z) * 2 + d / 400;
-      if (punktzahl > beste) {
-        beste = punktzahl;
-        mitte = { x, z };
-      }
-    }
+    const mitte = felsenfeldOrt(terrain, netz);
+
     const bloecke: {
       x: number;
       y: number;
@@ -312,6 +300,7 @@ export function Offroad({ terrain, strecke, netz }: OffroadProps) {
       const z = mitte.z + Math.sin(winkel) * radius;
       // Einzelne Blöcke dürfen trotzdem nicht auf einer Piste landen
       if (netz.randabstand(x, z) < 5) continue;
+      if (bebautesGebiet(terrain, netz, x, z)) continue;
       const groesse = 1.3 + rnd() * 2.6;
       bloecke.push({
         x,

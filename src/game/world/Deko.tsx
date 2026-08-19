@@ -3,7 +3,7 @@ import { useFrame } from '@react-three/fiber';
 import { CuboidCollider, CylinderCollider, RigidBody } from '@react-three/rapier';
 import { Euler, Group, Matrix4, Quaternion, Vector3 } from 'three';
 import { WELT, hoeheBei, steigungBei, type Terraindaten } from './heightmap';
-import { abstandZurStrecke, type Streckendaten } from './strecke';
+import { bebautesGebiet, dorfOrt, windmuehleOrt } from './orte';
 import type { Strassennetz } from './strassennetz';
 
 /**
@@ -61,6 +61,7 @@ function verteile(
     const x = (rnd() - 0.5) * 2 * rand;
     const z = (rnd() - 0.5) * 2 * rand;
     if (netz.randabstand(x, z) < minAbstand) continue;
+    if (bebautesGebiet(terrain, netz, x, z)) continue;
     if (steigungBei(terrain, x, z) > maxSteigung) continue;
     liste.push({
       x,
@@ -140,12 +141,11 @@ function Windmuehle({ x, y, z }: { x: number; y: number; z: number }) {
 
 interface DekoProps {
   terrain: Terraindaten;
-  strecke: Streckendaten;
   /** Kennt alle Fahrwege – hält Felsen, Büsche und Häuser von jeder Fahrbahn fern. */
   netz: Strassennetz;
 }
 
-export function Deko({ terrain, strecke, netz }: DekoProps) {
+export function Deko({ terrain, netz }: DekoProps) {
   const felsen = useMemo(
     () => verteile(terrain, netz, DEKO.felsen, DEKO.keim, 0.85, DEKO.abstandStrasse),
     [terrain, netz],
@@ -158,31 +158,15 @@ export function Deko({ terrain, strecke, netz }: DekoProps) {
   const felsenMatrizen = useMemo(() => matrizen(felsen, (p) => p.groesse * 0.35), [felsen]);
   const buschMatrizen = useMemo(() => matrizen(buesche, (p) => p.groesse * 0.4), [buesche]);
 
-  /** Ein kleines Dorf: mehrere Häuser auf einer flachen Stelle. */
+  /** Ein kleines Dorf. Der Platz kommt aus orte.ts, damit die Karte denselben kennt. */
   const dorf = useMemo(() => {
     const rnd = zufall(DEKO.keim + 31);
-    // Eine flache, freie Stelle in einiger Entfernung zur Strecke suchen
-    let mitte = { x: 0, z: 0 };
-    let beste = -Infinity;
-    for (let i = 0; i < 900; i++) {
-      const x = (rnd() - 0.5) * (WELT.groesse - 260);
-      const z = (rnd() - 0.5) * (WELT.groesse - 260);
-      const d = abstandZurStrecke(strecke, x, z).distanz;
-      if (d < 45 || d > 130) continue;
-      // Auch keine Nebenstraße oder Piste überbauen
-      if (netz.randabstand(x, z) < 30) continue;
-      const flachheit = 1 - steigungBei(terrain, x, z);
-      const punktzahl = flachheit * 3 - Math.abs(d - 70) / 100;
-      if (punktzahl > beste) {
-        beste = punktzahl;
-        mitte = { x, z };
-      }
-    }
+    const mitte = dorfOrt(terrain, netz);
 
     const haeuser: (Platz & { breite: number; tiefe: number; hoehe: number; farbe: string })[] = [];
     const farben = ['#d8cdb8', '#c9b79b', '#b8a68d', '#cdbfa6', '#a89478'];
-    for (let i = 0; i < 7; i++) {
-      const winkel = (i / 7) * Math.PI * 2 + rnd() * 0.5;
+    for (let i = 0; i < 8; i++) {
+      const winkel = (i / 8) * Math.PI * 2 + rnd() * 0.5;
       const radius = 16 + rnd() * 26;
       const x = mitte.x + Math.cos(winkel) * radius;
       const z = mitte.z + Math.sin(winkel) * radius;
@@ -199,27 +183,11 @@ export function Deko({ terrain, strecke, netz }: DekoProps) {
         farbe: farben[Math.floor(rnd() * farben.length)],
       });
     }
-    return haeuser;
-  }, [terrain, strecke]);
-
-  /** Standort der Windmühle: die höchste erreichbare Kuppe abseits der Straße. */
-  const muehle = useMemo(() => {
-    const rnd = zufall(DEKO.keim + 77);
-    let beste = -Infinity;
-    let ort = { x: 0, y: 0, z: 0 };
-    for (let i = 0; i < 900; i++) {
-      const x = (rnd() - 0.5) * (WELT.groesse - 200);
-      const z = (rnd() - 0.5) * (WELT.groesse - 200);
-      if (netz.randabstand(x, z) < 40) continue;
-      if (steigungBei(terrain, x, z) > 0.28) continue;
-      const h = hoeheBei(terrain, x, z);
-      if (h > beste) {
-        beste = h;
-        ort = { x, y: h, z };
-      }
-    }
-    return ort;
+    return { mitte, haeuser };
   }, [terrain, netz]);
+
+  /** Standort der Windmühle. Kommt aus orte.ts. */
+  const muehle = useMemo(() => windmuehleOrt(terrain, netz), [terrain, netz]);
 
   return (
     <>
@@ -258,7 +226,7 @@ export function Deko({ terrain, strecke, netz }: DekoProps) {
       </instancedMesh>
 
       {/* ---------- Dorf ---------- */}
-      {dorf.map((h, i) => (
+      {dorf.haeuser.map((h, i) => (
         <group key={i} position={[h.x, h.y, h.z]} rotation={[0, h.drehung, 0]}>
           {/* Wände */}
           <mesh position={[0, h.hoehe / 2, 0]} castShadow receiveShadow>
@@ -300,7 +268,7 @@ export function Deko({ terrain, strecke, netz }: DekoProps) {
         und über einen Busch fährt man ohnehin gern hinweg.
       */}
       <RigidBody type="fixed" colliders={false}>
-        {dorf.map((h, i) => (
+        {dorf.haeuser.map((h, i) => (
           <CuboidCollider
             key={i}
             args={[h.breite / 2, h.hoehe / 2 + 0.6, h.tiefe / 2]}

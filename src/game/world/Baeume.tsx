@@ -3,6 +3,7 @@ import { CylinderCollider, RigidBody } from '@react-three/rapier';
 import { Euler, Matrix4, Quaternion, Vector3 } from 'three';
 import { WELT, hoeheBei, steigungBei, type Terraindaten } from './heightmap';
 import type { Strassennetz } from './strassennetz';
+import { bebautesGebiet } from './orte';
 
 /**
  * Bäume als Instanced Meshes.
@@ -58,6 +59,7 @@ function platziereBaeume(terrain: Terraindaten, netz: Strassennetz): Baum[] {
     if (Math.hypot(x, z) < WELT.startFlaeche + 20) continue;
     // Nicht auf oder direkt neben irgendeinem Fahrweg
     if (netz.randabstand(x, z) < ABSTAND_STRASSE) continue;
+    if (bebautesGebiet(terrain, netz, x, z)) continue;
     // Nicht an steilen Hängen
     if (steigungBei(terrain, x, z) > MAX_STEIGUNG) continue;
 

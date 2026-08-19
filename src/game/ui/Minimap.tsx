@@ -5,6 +5,7 @@ import { WELT, hoeheBei, type Terraindaten } from '../world/heightmap';
 import { STRECKE, type Streckendaten } from '../world/strecke';
 import { planeHaufen } from '../world/Heuballen';
 import type { Strassennetz } from '../world/strassennetz';
+import { dorfOrt, felsenfeldOrt, stuntparkOrt, windmuehleOrt } from '../world/orte';
 import { PISTEN_WEGE } from '../world/Offroad';
 
 /**
@@ -119,6 +120,20 @@ export function Minimap({
    */
   const pisten = useMemo(() => PISTEN_WEGE(), []);
 
+  /**
+   * Die besonderen Orte. Sie kommen aus denselben Funktionen wie die 3D-Welt –
+   * dadurch zeigt der Marker garantiert dorthin, wo auch wirklich etwas steht.
+   */
+  const orte = useMemo(
+    () => [
+      { name: 'Stunt park', symbol: '▲', farbe: '#ff9f43', ...stuntparkOrt(terrain, netz) },
+      { name: 'Village', symbol: '⌂', farbe: '#e8dcc0', ...dorfOrt(terrain, netz) },
+      { name: 'Windmill', symbol: '✳', farbe: '#e8dcc0', ...windmuehleOrt(terrain, netz) },
+      { name: 'Rocks', symbol: '◆', farbe: '#b9b2a6', ...felsenfeldOrt(terrain, netz) },
+    ],
+    [terrain, netz],
+  );
+
   /** Mittelpunkte der Heuballen-Haufen, damit man sie ansteuern kann. */
   const heuHaufen = useMemo(() => {
     const ballen = planeHaufen(terrain, strecke, netz);
@@ -232,6 +247,30 @@ export function Minimap({
         ctx.stroke();
       }
 
+      // ----- Besondere Orte -----
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      for (const o of orte) {
+        const x = kx(o.x);
+        const y = kz(o.z);
+        const r = gross ? 9 : 6.5;
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(12, 18, 26, 0.78)';
+        ctx.fill();
+        ctx.strokeStyle = o.farbe;
+        ctx.lineWidth = 1.6;
+        ctx.stroke();
+        ctx.fillStyle = o.farbe;
+        ctx.font = `${gross ? 11 : 8}px system-ui, sans-serif`;
+        ctx.fillText(o.symbol, x, y + 0.5);
+        if (gross) {
+          ctx.font = '11px system-ui, sans-serif';
+          ctx.fillStyle = 'rgba(232, 240, 248, 0.9)';
+          ctx.fillText(o.name, x, y + 20);
+        }
+      }
+
       // ----- Renn-Tor bzw. nächster Kontrollpunkt -----
       const imRennen = rennen.phase === 'laeuft' || rennen.phase === 'countdown';
       const ziel = imRennen
@@ -275,7 +314,7 @@ export function Minimap({
     };
     id = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(id);
-  }, [gross, groesse, gelaende, linie, nebenLinien, pisten, heuHaufen]);
+  }, [gross, groesse, gelaende, linie, nebenLinien, pisten, heuHaufen, orte]);
 
   if (gross) {
     return (
@@ -287,6 +326,7 @@ export function Minimap({
             <span><i className="punkt tor" /> Race gate</span>
             <span><i className="punkt piste" /> Dirt trail</span>
             <span><i className="punkt heu" /> Hay bales</span>
+            <span><i className="punkt attraktion" /> Attractions</span>
             <span><i className="punkt auto" /> You</span>
           </div>
           <div className="karte-hinweis">M or click to close</div>
