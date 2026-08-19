@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Environment, Sky } from '@react-three/drei';
 import { Physics } from '@react-three/rapier';
@@ -18,10 +18,11 @@ import { Terrain } from './world/Terrain';
 import { Road } from './world/Road';
 import { Leitplanken } from './world/Leitplanken';
 import { Baeume } from './world/Baeume';
+import { Heuballen } from './world/Heuballen';
 import { SunLight, SONNE } from './world/SunLight';
 import { Weltgrenze } from './world/Weltgrenze';
 import { erzeugeTerrain } from './world/heightmap';
-import { erzeugeWelt } from './world/strecke';
+import { erzeugeWelt, type Streckendaten } from './world/strecke';
 import { RaceZone } from './race/RaceZone';
 import { rennen, rennenAktualisieren, rennenVorbereiten } from './race/rennen';
 import { ChaseCamera } from './camera/ChaseCamera';
@@ -83,9 +84,11 @@ interface SceneProps {
   pausiert: boolean;
   /** Weniger Effekte für schwächere Geräte. */
   sparsam?: boolean;
+  /** Wird mit der erzeugten Strecke aufgerufen – die Minimap braucht sie. */
+  onWeltFertig?: (strecke: Streckendaten) => void;
 }
 
-export function Scene({ pausiert, sparsam }: SceneProps) {
+export function Scene({ pausiert, sparsam, onWeltFertig }: SceneProps) {
   /** Das sichtbare Auto – die Kamera folgt diesem Objekt. */
   const autoRef = useRef<Object3D>(null);
 
@@ -104,6 +107,11 @@ export function Scene({ pausiert, sparsam }: SceneProps) {
     rennenVorbereiten(s);
     return { terrain: t, strecke: s };
   }, []);
+
+  // Die Strecke einmal nach oben reichen, damit die Minimap sie zeichnen kann
+  useEffect(() => {
+    onWeltFertig?.(strecke);
+  }, [strecke, onWeltFertig]);
 
   const wenigEffekte = sparsam || SPARSAM;
 
@@ -155,6 +163,7 @@ export function Scene({ pausiert, sparsam }: SceneProps) {
         <Road strecke={strecke} terrain={terrain} />
         <Leitplanken strecke={strecke} terrain={terrain} />
         <Baeume terrain={terrain} strecke={strecke} />
+        <Heuballen terrain={terrain} strecke={strecke} />
         <Weltgrenze />
         <Car followRef={autoRef} strecke={strecke} />
       </Physics>

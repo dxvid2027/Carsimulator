@@ -2,7 +2,7 @@
 
 3D-Open-World-Fahrspiel im Browser.
 
-**Stand: Phase 4 – offene Welt mit optionalem Rennen. Spielbar auf PC, Tablet und Handy.**
+**Stand: Phase 5 – offene Welt mit Geländewagen, Heuballen, Minikarte und optionalem Rennen.**
 
 Grundzustand ist **freies Fahren**: keine Uhr, keine Vorgaben, fahr wohin du
 willst. Wer mag, startet an einem markierten Tor auf der Straße ein Rennen über
@@ -106,6 +106,8 @@ Jeder weitere Push auf den Branch baut die Seite automatisch neu.
 
 ## Was dieser Prototyp kann
 
+- **Höhergelegte Limousine** auf Grobstollenreifen, mit Dachträger und
+  Reserverad. 0,51 m Bodenfreiheit, Kippgrenze 1,53 g.
 - **Raycast-Vehicle über Rapier** – kein Arcade-Würfel, sondern vier Räder mit
   echter Federung, Grip und Radlastverteilung.
 - **Dosierbare Lenkung** mit gleichmäßiger Rate, schneller Rückstellung und
@@ -120,6 +122,11 @@ Jeder weitere Push auf den Branch baut die Seite automatisch neu.
 - **Unterschiedlicher Grip**: Auf Asphalt klebt das Auto, im Gras rutscht es.
 - **Bäume und Leitplanken** als Instanced Meshes, beide mit Kollision.
   Leitplanken stehen nur dort, wo das Gelände neben der Fahrbahn abfällt.
+- **Heuballen-Haufen** neben der Strecke: mehrere Rundballen nebeneinander und
+  gestapelt. Sie sind bewegliche Körper – man fährt hindurch und treibt sie
+  auseinander.
+- **Minikarte** oben rechts mit der ganzen Welt, dem eigenen Standort samt
+  Blickrichtung und dem Renn-Tor.
 - **Optionales Rennen** mit Kontrollpunkten, Rundenzeiten und Bestzeit.
 - **Luftlagen-Stabilisierung** – nach Sprüngen landet das Auto wieder auf den
   Rädern; bleibt es doch liegen, setzt es sich nach 3 s selbst zurück.
@@ -152,6 +159,7 @@ src/
       CarModel.tsx          Karosserie aus einfachen Formen
     world/
       heightmap.ts          Prozedurale Höhendaten + Höhenabfrage
+      Heuballen.tsx         Bewegliche Heuballen in Haufen
       strecke.ts            Rundkurs erzeugen und ins Terrain einschneiden
       Terrain.tsx           Sichtbares Terrain (Kacheln) + Heightfield-Kollider
       Road.tsx              Sichtbares Straßenband
@@ -170,6 +178,8 @@ src/
       StartScreen.tsx       Wahl der Steuerung beim Start
       PauseMenu.tsx         Pausemenü
       RaceHud.tsx           Einladung, Countdown, Rundenzeiten, Ergebnis
+      Minimap.tsx           Karte oben rechts (2D-Canvas, nicht 3D)
+      Logo.tsx              Spiel-Logo als SVG
 public/
   venice_sunset_1k.hdr      HDRI fürs Umgebungslicht (CC0)
   ASSETS.md                 Herkunft und Lizenz der Assets
@@ -179,6 +189,7 @@ tools/
   terrain-test.ts           Headless-Test des Terrains
   strecken-test.ts          Headless-Test des Rundkurses
   rennen-test.ts            Headless-Test der Rennlogik
+  heuballen-test.ts         Headless-Test der Heuballen
 ```
 
 ## Testen ohne Browser
@@ -195,11 +206,11 @@ npm run physik
 
 | Messung | Wert |
 |---|---|
-| 0–100 km/h | 4,97 s |
-| Topspeed | 192 km/h |
-| Bremsweg 100–0 km/h | 18,3 m |
+| 0–100 km/h | 5,78 s |
+| Topspeed | 196 km/h |
+| Bremsweg 100–0 km/h | 15,9 m |
 | Dauerkurve 80 km/h | stabil, kippt nicht |
-| Handbremsen-Drift | bis 42°, fängt sich wieder |
+| Handbremsen-Drift | bis 41°, fängt sich wieder |
 | Luftlage nach Sprung | richtet sich auf, landet auf den Rädern |
 
 ### Lenkung
@@ -273,6 +284,26 @@ verschiedene Fahrbahnhöhen und die Straße bekommt eine Stufe. Deshalb probiert
 die Streckenerzeugung automatisch mehrere Zufallskeime durch, bis einer die
 Vorgaben in `STRECKE` erfüllt.
 
+### Heuballen
+
+```bash
+npm run heu
+```
+
+Prüft, ob die Haufen sauber neben der Fahrbahn liegen, nicht im Boden stecken
+und ob man wirklich hindurchfahren kann, statt gegen eine Mauer zu prallen.
+
+| Messung | Wert |
+|---|---|
+| Ballen | 98 in 14 Haufen |
+| Abstand zur Streckenmitte | mind. 8,6 m (Fahrbahn ist 6 m halbbreit) |
+| Durchfahrt mit 68 km/h | alle Ballen fliegen weg, größter Versatz ca. 19 m |
+| Ballen durch den Boden | keine |
+
+Die Ballen wiegen bewusst 170 kg statt realistischer 300 kg. Mit dem echten
+Gewicht bremst ein Haufen das Auto von 68 auf 5 km/h ab und fühlt sich an wie
+eine Mauer.
+
 ### Rennen
 
 ```bash
@@ -304,6 +335,10 @@ Zeiten wären falsch. Sie misst deshalb echte Zeit (siehe `RennenTakt` in
 - **Strecke ändern:** `STRECKE` in `src/game/world/strecke.ts`.
 - **Rennen ändern:** `RENNEN_EINSTELLUNGEN` in `src/game/race/rennen.ts`
   (Rundenzahl, Anzahl Kontrollpunkte, Lage der Startzone).
+- **Heuballen ändern:** `HAUFEN` in `src/game/world/Heuballen.tsx`
+  (Anzahl der Haufen, Ballen je Haufen, Gewicht).
+- **Logo ändern:** `src/game/ui/Logo.tsx` (SVG im Code) und das Tab-Symbol in
+  `index.html`.
 
 ## Weitere Befehle
 
@@ -315,7 +350,6 @@ npm run typecheck  # TypeScript prüfen
 
 ## Nächste Schritte
 
-- Minimap mit Richtungspfeil zum Renn-Tor
 - Weitere Aktivitäten in der offenen Welt (Sprungschanzen, Zeitfahrten)
 - Cascaded Shadow Maps statt eines mitwandernden Schattenbereichs
 - LOD für Terrain und Bäume in der Ferne

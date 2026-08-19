@@ -25,13 +25,13 @@ export const SONNE = new Vector3(0.5, 0.62, 0.38).normalize();
 /** Alter Name, intern weiterverwendet. */
 const SONNENRICHTUNG = SONNE;
 /** Abstand des Lichts zum Auto. Muss zu shadow-camera-far passen. */
-const ABSTAND = 120;
+const ABSTAND = 95;
 /**
  * Halbe Kantenlänge des Schattenbereichs in Metern.
  * Groß genug, dass die Grenze außerhalb des Blickfelds liegt – an dieser Kante
  * endet sonst sichtbar die Verschattung und man sieht ein Rechteck im Gelände.
  */
-const SCHATTENBOX = 90;
+const SCHATTENBOX = 48;
 
 interface SunLightProps {
   /** Das Objekt, dem der Schattenbereich folgt (das Auto). */
@@ -80,14 +80,34 @@ export function SunLight({ ziel }: SunLightProps) {
           Zu klein -> Streifenmuster auf schrägen Flächen ("Shadow Acne"),
           das an der Grenze des Schattenbereichs als Rechteck sichtbar wird.
         */
-        shadow-normalBias={0.08}
-        shadow-bias={-0.0004}
+        /*
+          Bias gegen "Shadow Acne" – aber sparsam dosiert.
+
+          Zu klein: feines Streifenmuster auf ebenen Flächen.
+          Zu groß: der gesamte Bereich innerhalb der Schattenkamera wird
+          gleichmäßig abgedunkelt, und man sieht ein dunkles Rechteck, das
+          mit dem Auto mitwandert. Genau das passierte bei 0,35.
+        */
+        shadow-normalBias={0.02}
+        shadow-bias={-0.00008}
         shadow-camera-left={-SCHATTENBOX}
         shadow-camera-right={SCHATTENBOX}
         shadow-camera-top={SCHATTENBOX}
         shadow-camera-bottom={-SCHATTENBOX}
-        shadow-camera-near={1}
-        shadow-camera-far={ABSTAND * 2.2}
+        /*
+          Nah- und Fernebene eng um das Auto legen.
+
+          Die Schattenkamera steht ABSTAND Meter entfernt. Mit near=1 müsste
+          sie einen Tiefenbereich von über 200 m in der Schattentextur
+          unterbringen – die Genauigkeit reicht dann nicht mehr, und der
+          gesamte Bereich innerhalb der Schattenkamera wird gleichmäßig
+          abgedunkelt. Sichtbar als dunkles Rechteck, das mitwandert.
+
+          Mit einem engen Bereich (hier gut 100 m) steckt die volle
+          Genauigkeit dort, wo sie gebraucht wird.
+        */
+        shadow-camera-near={ABSTAND - 45}
+        shadow-camera-far={ABSTAND + 70}
       />
       {/* Unsichtbares Hilfsobjekt, auf das das Licht zeigt */}
       <object3D ref={zielObjekt} />

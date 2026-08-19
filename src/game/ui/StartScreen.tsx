@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { Steuerungsart } from '../spielzustand';
+import { Logo } from './Logo';
 
 interface StartScreenProps {
   /** Vorauswahl anhand des Geräts. */
@@ -22,6 +23,9 @@ export function StartScreen({ vorschlag, onStart }: StartScreenProps) {
   return (
     <div className="start">
       <div className="start-box">
+        <div className="start-logo">
+          <Logo groesse={96} />
+        </div>
         <div className="start-titel">Carsimulator</div>
         <div className="start-untertitel">Open world driving</div>
 

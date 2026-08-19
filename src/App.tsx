@@ -7,6 +7,8 @@ import { TouchControls } from './game/ui/TouchControls';
 import { StartScreen } from './game/ui/StartScreen';
 import { PauseMenu } from './game/ui/PauseMenu';
 import { RaceHud } from './game/ui/RaceHud';
+import { Minimap } from './game/ui/Minimap';
+import type { Streckendaten } from './game/world/strecke';
 import { rennen, rennenBeenden, rennenStarten } from './game/race/rennen';
 import { touchEingabe } from './game/input/touchInput';
 import {
@@ -34,6 +36,8 @@ export default function App() {
   const [steuerung, setSteuerung] = useState<Steuerungsart>(
     () => gespeicherteSteuerung() ?? VORSCHLAG,
   );
+  /** Die Strecke kommt aus der 3D-Szene und wird für die Minimap gebraucht. */
+  const [strecke, setStrecke] = useState<Streckendaten | null>(null);
 
   const touch = steuerung === 'touch';
 
@@ -112,7 +116,7 @@ export default function App() {
   return (
     <>
       <Canvas
-        shadows
+        shadows="soft"
         // Die Kamera wird ab dem ersten Frame von der ChaseCamera gesteuert
         camera={{ position: [0, 4, -10], fov: 62, near: 0.3, far: 2000 }}
         gl={{
@@ -130,7 +134,7 @@ export default function App() {
       >
         <Suspense fallback={null}>
           {/* Solange der Startbildschirm offen ist, steht die Physik still */}
-          <Scene pausiert={!laeuft} />
+          <Scene pausiert={!laeuft} onWeltFertig={setStrecke} />
         </Suspense>
       </Canvas>
 
@@ -139,6 +143,8 @@ export default function App() {
       </Suspense>
 
       {laeuft && <RaceHud />}
+
+      {laeuft && strecke && <Minimap strecke={strecke} />}
 
       {touch && laeuft && <TouchControls onPause={pausieren} />}
 

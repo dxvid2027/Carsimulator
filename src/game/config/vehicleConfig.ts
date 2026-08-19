@@ -19,46 +19,64 @@ export const PHYSIK_DT = 1 / 60;
 
 export const FAHRZEUG = {
   // ---------- Karosserie ----------
-  /** Halbe Abmessungen des Kollisions-Quaders in Metern (also 1,7 × 0,64 × 4,0 m). */
-  halbeGroesse: { x: 0.85, y: 0.32, z: 2.0 },
-  /** Gesamtmasse in kg. */
-  masse: 1200,
+  /**
+   * Halbe Abmessungen des Kollisions-Quaders in Metern
+   * (also 1,84 × 0,80 × 4,7 m – eine große Limousine).
+   */
+  halbeGroesse: { x: 0.92, y: 0.4, z: 2.35 },
+  /** Gesamtmasse in kg. Eine Limousine dieser Größe wiegt gut 1,6 t. */
+  masse: 1620,
   /**
    * Schwerpunkt relativ zur Fahrzeugmitte. Negatives Y = tiefer.
    * Ein tiefer Schwerpunkt ist der wichtigste Trick gegen Umkippen.
+   *
+   * Das Auto ist jetzt höhergelegt, der Schwerpunkt liegt also von Natur aus
+   * höher als bei einem Sportwagen. Deshalb wird er hier zusätzlich nach unten
+   * gezogen – sonst kippt der Wagen in schnellen Kurven um.
    */
-  schwerpunkt: { x: 0, y: -0.25, z: 0 },
+  schwerpunkt: { x: 0, y: -0.34, z: 0 },
   /** Trägheitsmoment um X/Y/Z. Großes Y = das Auto dreht sich träger um die Hochachse. */
-  traegheit: { x: 1000, y: 1300, z: 550 },
+  traegheit: { x: 1500, y: 2100, z: 800 },
   /** Startposition beim Laden und beim Reset (Taste R). */
-  startPosition: [0, 1.2, 0] as [number, number, number],
+  startPosition: [0, 1.4, 0] as [number, number, number],
 
   // ---------- Räder ----------
   rad: {
-    radius: 0.36,
-    breite: 0.25,
+    /** Grobstollige Geländereifen, deutlich größer als Serienräder. */
+    radius: 0.42,
+    breite: 0.32,
     /** Abstand der Räder von der Mittelachse nach links/rechts. */
-    spurweite: 0.85,
+    spurweite: 0.88,
     /** Abstand der Vorder-/Hinterachse von der Fahrzeugmitte. */
-    radstand: 1.35,
-    /** Höhe des Aufhängungspunkts relativ zur Fahrzeugmitte. */
-    anbauHoehe: -0.32,
+    radstand: 1.48,
+    /**
+     * Höhe des Aufhängungspunkts relativ zur Fahrzeugmitte.
+     *
+     * Dieser Wert bestimmt, wie hoch die Karosserie über dem Boden sitzt:
+     * Fahrzeugmitte = Radradius + Federweg − anbauHoehe.
+     * Weiter oben angesetzt heißt tiefer liegendes Auto und mehr Überdeckung
+     * zwischen Rad und Kotflügel.
+     */
+    anbauHoehe: -0.12,
   },
 
   // ---------- Federung ----------
   federung: {
-    /** Länge der Feder in Ruhe (unbelastet) in Metern. */
-    ruhelaenge: 0.35,
-    /** Härte der Feder. Höher = strafferes Fahrwerk, weniger Wanken. */
-    haerte: 40,
+    /** Länge der Feder in Ruhe (unbelastet) in Metern. Höhergelegt = länger. */
+    ruhelaenge: 0.42,
+    /**
+     * Härte der Feder. Höher = strafferes Fahrwerk, weniger Wanken.
+     * Muss zur größeren Masse passen, sonst sackt der Wagen durch.
+     */
+    haerte: 52,
     /** Dämpfung beim Einfedern. */
     daempfungDruck: 1.4,
     /** Dämpfung beim Ausfedern. Sollte größer als daempfungDruck sein. */
     daempfungZug: 2.4,
-    /** Maximaler Federweg in Metern. */
-    maxWeg: 0.28,
+    /** Maximaler Federweg in Metern. Geländefahrwerk = viel Weg. */
+    maxWeg: 0.34,
     /** Obergrenze der Federkraft in Newton (verhindert Katapult-Effekte). */
-    maxKraft: 30000,
+    maxKraft: 42000,
   },
 
   // ---------- Reifengrip ----------
@@ -77,22 +95,23 @@ export const FAHRZEUG = {
      *
      * Zum Driften wird der Hinterrad-Grip gezielt abgesenkt – siehe `drift`.
      */
-    vorne: 2.4,
-    hinten: 2.8,
+    vorne: 1.5,
+    hinten: 1.78,
     /** Seitenführungskraft. 1 = voller Seitenhalt, 0 = das Rad rutscht seitlich weg. */
     seite: 1.0,
     /**
      * Grip-Faktor im Gelände (Wiese, Schotter) gegenüber Asphalt.
-     * 0,72 heißt: neben der Strecke hat man knapp drei Viertel des Grips –
-     * spürbar rutschiger, aber noch kontrollierbar.
+     * 0,78 heißt: neben der Strecke hat man gut drei Viertel des Grips.
+     * Bei einem Geländewagen mit Grobstollenreifen ist der Unterschied
+     * zwischen Asphalt und Wiese kleiner als bei einem Sportwagen.
      */
-    gelaende: 0.72,
+    gelaende: 0.78,
   },
 
   // ---------- Antrieb ----------
   antrieb: {
     /** Maximale Antriebskraft pro angetriebenem Rad in Newton (Heckantrieb: 2 Räder). */
-    maxMotorkraft: 4500,
+    maxMotorkraft: 5200,
     /**
      * Geschwindigkeit in m/s, bei der die Motorkraft auf 0 fällt.
      * Das ersetzt eine echte Drehmomentkurve und begrenzt den Topspeed.
@@ -101,7 +120,7 @@ export const FAHRZEUG = {
     /** Anteil der Motorkraft beim Rückwärtsfahren. */
     rueckwaertsAnteil: 0.45,
     /** Bremskraft der Betriebsbremse. */
-    bremskraft: 1600,
+    bremskraft: 1300,
     /** Bremskraft der Handbremse (wirkt nur hinten). */
     handbremskraft: 900,
     /** Leichtes Bremsen beim Ausrollen ohne Gas (Motorbremse + Rollwiderstand). */
@@ -189,7 +208,7 @@ export const FAHRZEUG = {
   // ---------- Drift ----------
   drift: {
     /** Hinterrad-Grip bei Vollgas (statt grip.hinten) – lässt das Heck kommen. */
-    gripVollgas: 1.5,
+    gripVollgas: 0.95,
     /** Seitenführung hinten bei Vollgas. */
     seiteVollgas: 0.55,
     /**
@@ -198,7 +217,7 @@ export const FAHRZEUG = {
      * griffiger gemacht, muss die Handbremse stärker absenken, damit der
      * Drift gleich bleibt. Gemessen: 49° Drift, in 1,4 s wieder abgefangen.
      */
-    gripHandbremse: 0.55,
+    gripHandbremse: 0.36,
     /** Seitenführung hinten bei gezogener Handbremse. */
     seiteHandbremse: 0.45,
   },

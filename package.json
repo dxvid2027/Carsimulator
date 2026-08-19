@@ -12,7 +12,8 @@
     "terrain": "tsx tools/terrain-test.ts",
     "strecke": "tsx tools/strecken-test.ts",
     "lenkung": "tsx tools/lenkung-test.ts",
-    "rennen": "tsx tools/rennen-test.ts"
+    "rennen": "tsx tools/rennen-test.ts",
+    "heu": "tsx tools/heuballen-test.ts"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "0.19.2",
