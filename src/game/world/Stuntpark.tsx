@@ -62,6 +62,16 @@ function macheKeil(breite: number, laenge: number, hoehe: number) {
   );
 
   const positionen = new Float32Array(dreiecke.length * 9);
+  /*
+    Ohne Texturkoordinaten sucht sich die Textur an jeder Ecke dieselbe Stelle
+    im Bild – die Rampe sah deshalb wie eine einfarbige braune Fläche aus.
+    Wir legen die Textur wie eine Tapete an: Für jede Fläche zählt die Achse,
+    in die sie am stärksten zeigt; die beiden anderen Achsen liefern die
+    Koordinaten. So läuft die Maserung über die ganze Rampe durch.
+  */
+  const uvs = new Float32Array(dreiecke.length * 6);
+  /** Eine Texturkachel ist so viele Meter groß. */
+  const KACHEL = 2.2;
   dreiecke.forEach((dreieck, i) => {
     const [a, b2, c] = dreieck;
     const u = [b2[0] - a[0], b2[1] - a[1], b2[2] - a[2]];
@@ -80,10 +90,32 @@ function macheKeil(breite: number, laenge: number, hoehe: number) {
       normale[0] * nachAussen[0] + normale[1] * nachAussen[1] + normale[2] * nachAussen[2] < 0;
     const richtig = zeigtNachInnen ? [a, c, b2] : [a, b2, c];
     positionen.set(richtig.flat(), i * 9);
+
+    // Dominante Achse der Fläche bestimmen
+    const ax = Math.abs(normale[0]);
+    const ay = Math.abs(normale[1]);
+    const az = Math.abs(normale[2]);
+    richtig.forEach((ecke, k) => {
+      let u: number;
+      let v: number;
+      if (ay >= ax && ay >= az) {
+        u = ecke[0];
+        v = ecke[2];
+      } else if (ax >= az) {
+        u = ecke[2];
+        v = ecke[1];
+      } else {
+        u = ecke[0];
+        v = ecke[1];
+      }
+      uvs[i * 6 + k * 2] = u / KACHEL;
+      uvs[i * 6 + k * 2 + 1] = v / KACHEL;
+    });
   });
 
   const geo = new BufferGeometry();
   geo.setAttribute('position', new BufferAttribute(positionen, 3));
+  geo.setAttribute('uv', new BufferAttribute(uvs, 2));
   geo.computeVertexNormals();
   geo.computeBoundingSphere();
 
@@ -93,7 +125,7 @@ function macheKeil(breite: number, laenge: number, hoehe: number) {
 }
 
 /** Holz- und Metalltexturen im Code erzeugt. */
-function macheTexturen() {
+export function macheTexturen() {
   // Holzplanken
   const hg = 256;
   const hc = document.createElement('canvas');
@@ -137,7 +169,78 @@ function macheTexturen() {
   blech.wrapS = blech.wrapT = RepeatWrapping;
   blech.colorSpace = SRGBColorSpace;
 
-  return { holz, blech };
+  // Warnstreifen (schwarz/gelb) fuer Rampenkanten und Gelaender
+  const sg = 128;
+  const sc = document.createElement('canvas');
+  sc.width = sc.height = sg;
+  const sx = sc.getContext('2d')!;
+  sx.fillStyle = '#f0b429';
+  sx.fillRect(0, 0, sg, sg);
+  sx.fillStyle = '#1d1d1d';
+  sx.lineWidth = 0;
+  for (let i = -sg; i < sg * 2; i += 32) {
+    sx.beginPath();
+    sx.moveTo(i, 0);
+    sx.lineTo(i + 16, 0);
+    sx.lineTo(i + 16 + sg, sg);
+    sx.lineTo(i + sg, sg);
+    sx.closePath();
+    sx.fill();
+  }
+  const streifen = new CanvasTexture(sc);
+  streifen.wrapS = streifen.wrapT = RepeatWrapping;
+  streifen.colorSpace = SRGBColorSpace;
+  // Quader-Flächen haben Texturkoordinaten von 0 bis 1 – ohne Wiederholung
+  // würde ein einzelner Streifen über den ganzen Balken gezogen.
+  streifen.repeat.set(6, 1);
+
+  /*
+    Dieselben Planken noch einmal, aber viel öfter wiederholt: Die Plattform
+    ist 13 x 26 m groß. Mit nur einer Kachel wäre jede Planke zwei Meter breit.
+  */
+  const holzPlatte = holz.clone();
+  holzPlatte.needsUpdate = true;
+  holzPlatte.repeat.set(6, 12);
+
+  // Kiesboden des Parks
+  const kg = 256;
+  const kc = document.createElement('canvas');
+  kc.width = kc.height = kg;
+  const kx = kc.getContext('2d')!;
+  kx.fillStyle = '#7d7365';
+  kx.fillRect(0, 0, kg, kg);
+  for (let i = 0; i < 2600; i++) {
+    const r = 0.8 + Math.random() * 2.2;
+    const h = 90 + Math.random() * 70;
+    kx.fillStyle = `rgba(${h}, ${h - 6}, ${h - 16}, ${0.25 + Math.random() * 0.5})`;
+    kx.beginPath();
+    kx.arc(Math.random() * kg, Math.random() * kg, r, 0, Math.PI * 2);
+    kx.fill();
+  }
+  const kies = new CanvasTexture(kc);
+  kies.wrapS = kies.wrapT = RepeatWrapping;
+  kies.colorSpace = SRGBColorSpace;
+  kies.repeat.set(26, 26);
+  kies.anisotropy = 8;
+
+  // Beschriftetes Schild
+  const bc = document.createElement('canvas');
+  bc.width = 512;
+  bc.height = 128;
+  const bx = bc.getContext('2d')!;
+  bx.fillStyle = '#e8a33d';
+  bx.fillRect(0, 0, 512, 128);
+  bx.fillStyle = '#2a1c0c';
+  bx.fillRect(0, 0, 512, 10);
+  bx.fillRect(0, 118, 512, 10);
+  bx.font = 'bold 62px sans-serif';
+  bx.textAlign = 'center';
+  bx.textBaseline = 'middle';
+  bx.fillText('STUNT PARK', 256, 68);
+  const schild = new CanvasTexture(bc);
+  schild.colorSpace = SRGBColorSpace;
+
+  return { holz, holzPlatte, blech, streifen, kies, schild };
 }
 
 interface RampeProps {
@@ -150,14 +253,26 @@ interface RampeProps {
   hoehe: number;
   farbe?: string;
   textur?: CanvasTexture;
+  /** Schwarz-gelbe Warnstreifen an Kante und Geländer. */
+  streifen?: CanvasTexture;
 }
 
 /** Eine einzelne Sprungrampe. */
-export function Rampe({ x, y, z, gier, breite, laenge, hoehe, farbe, textur }: RampeProps) {
+export function Rampe({
+  x, y, z, gier, breite, laenge, hoehe, farbe, textur, streifen,
+}: RampeProps) {
   const { geo, huelle } = useMemo(
     () => macheKeil(breite, laenge, hoehe),
     [breite, laenge, hoehe],
   );
+
+  /*
+    Die Schräge der Fahrfläche. Ein Balken, der entlang z liegt, muss um genau
+    diesen Winkel gekippt werden, damit er auf der Schräge aufliegt.
+  */
+  const winkel = Math.atan2(hoehe, laenge);
+  const schraegLaenge = Math.hypot(hoehe, laenge);
+  const b = breite / 2;
 
   return (
     <group position={[x, y, z]} rotation={[0, gier, 0]}>
@@ -167,6 +282,50 @@ export function Rampe({ x, y, z, gier, breite, laenge, hoehe, farbe, textur }: R
           color={farbe ?? '#a8845c'}
           roughness={0.9}
           metalness={0.05}
+        />
+      </mesh>
+
+      {/*
+        Geländer links und rechts. Sie sind nur Deko (kein Kollisionskörper) –
+        so kann man auch schräg auf die Rampe fahren, ohne hängen zu bleiben,
+        sieht aber trotzdem sofort, wo die Rampe anfängt und aufhört.
+      */}
+      {[-1, 1].map((seite) => (
+        <mesh
+          key={seite}
+          position={[seite * (b + 0.14), hoehe / 2 + 0.16, laenge / 2]}
+          rotation={[-winkel, 0, 0]}
+          castShadow
+        >
+          <boxGeometry args={[0.24, 0.34, schraegLaenge]} />
+          <meshStandardMaterial
+            map={streifen}
+            color={streifen ? '#ffffff' : '#d8b04a'}
+            roughness={0.7}
+          />
+        </mesh>
+      ))}
+
+      {/*
+        Sockel unter der Rampe.
+
+        Die Rampe ist ein gerader Körper, das Gelände ist es nicht. Ohne den
+        Sockel schwebt die hohe Seite an einem Gefälle sichtbar in der Luft.
+        Der Sockel steckt zwei Meter tief im Boden und schließt die Lücke –
+        bergauf verschwindet er einfach im Hang.
+      */}
+      <mesh position={[0, -1.2, laenge / 2]} receiveShadow>
+        <boxGeometry args={[breite, 2.4, laenge]} />
+        <meshStandardMaterial map={textur} color="#7a6144" roughness={0.95} />
+      </mesh>
+
+      {/* Warnkante an der Absprungkante */}
+      <mesh position={[0, hoehe + 0.07, laenge - 0.35]} castShadow>
+        <boxGeometry args={[breite + 0.5, 0.14, 0.7]} />
+        <meshStandardMaterial
+          map={streifen}
+          color={streifen ? '#ffffff' : '#f0b429'}
+          roughness={0.7}
         />
       </mesh>
       {/*
@@ -188,13 +347,32 @@ interface StuntparkProps {
 
 export function Stuntpark({ terrain, netz }: StuntparkProps) {
   const ort = useMemo(() => stuntparkOrt(terrain, netz), [terrain, netz]);
-  const { holz, blech } = useMemo(() => macheTexturen(), []);
+  const { holz, holzPlatte, blech, streifen, kies, schild } = useMemo(
+    () => macheTexturen(),
+    [],
+  );
 
   /** Höhe an einer Stelle des Parks, relativ zum Mittelpunkt. */
   const h = (dx: number, dz: number) => hoeheBei(terrain, ort.x + dx, ort.z + dz);
 
   return (
     <group>
+      {/*
+        Kiesplatz.
+
+        Der Boden ist hier eingeebnet – eine einzige flache Scheibe genügt
+        deshalb, um aus der Wiese einen Platz zu machen. Sie liegt zwei
+        Zentimeter über dem Terrain, damit die beiden Flächen nicht flackern.
+      */}
+      <mesh
+        position={[ort.x, ort.y + 0.02, ort.z]}
+        rotation={[-Math.PI / 2, 0, 0]}
+        receiveShadow
+      >
+        <circleGeometry args={[56, 48]} />
+        <meshStandardMaterial map={kies} color="#a49a8a" roughness={1} />
+      </mesh>
+
       {/* ---------- Weitsprung: Absprung- und Landerampe ---------- */}
       {/*
         Zwei Rampen, die einander zugewandt sind. Dazwischen eine Lücke: Man
@@ -206,11 +384,13 @@ export function Stuntpark({ terrain, netz }: StuntparkProps) {
         x={ort.x} y={h(0, -34)} z={ort.z - 34}
         gier={0} breite={11} laenge={16} hoehe={3.4}
         textur={holz}
+        streifen={streifen}
       />
       <Rampe
         x={ort.x} y={h(0, 34)} z={ort.z + 34}
         gier={Math.PI} breite={13} laenge={18} hoehe={3.0}
         textur={holz}
+        streifen={streifen}
       />
 
       {/* ---------- Große Rampe auf eine Plattform ---------- */}
@@ -218,12 +398,13 @@ export function Stuntpark({ terrain, netz }: StuntparkProps) {
         x={ort.x - 40} y={h(-40, -18)} z={ort.z - 18}
         gier={0} breite={9} laenge={22} hoehe={5.5}
         textur={holz}
+        streifen={streifen}
       />
       {/* Die Plattform schließt oben an die Rampe an */}
       <group position={[ort.x - 40, h(-40, -18) + 5.5, ort.z + 6]}>
         <mesh position={[0, -0.4, 0]} castShadow receiveShadow>
           <boxGeometry args={[13, 0.8, 26]} />
-          <meshStandardMaterial map={holz} color="#96784f" roughness={0.9} />
+          <meshStandardMaterial map={holzPlatte} color="#96784f" roughness={0.9} />
         </mesh>
         {/* Stützen */}
         {[-5.5, 5.5].map((sx) =>
@@ -243,6 +424,7 @@ export function Stuntpark({ terrain, netz }: StuntparkProps) {
         x={ort.x - 40} y={h(-40, 32)} z={ort.z + 32 + 14}
         gier={Math.PI} breite={9} laenge={14} hoehe={5.5}
         textur={holz}
+        streifen={streifen}
       />
 
       {/* ---------- Container zum Draufspringen ---------- */}
@@ -281,6 +463,7 @@ export function Stuntpark({ terrain, netz }: StuntparkProps) {
         x={ort.x + 40} y={h(40, -36)} z={ort.z - 36}
         gier={0} breite={8} laenge={13} hoehe={2.6}
         textur={holz}
+        streifen={streifen}
       />
 
       {/* ---------- Reifenstapel als Abgrenzung ---------- */}
@@ -312,9 +495,9 @@ export function Stuntpark({ terrain, netz }: StuntparkProps) {
         <mesh position={[0, 4.6, 0]} castShadow>
           <boxGeometry args={[6.4, 1.5, 0.2]} />
           <meshStandardMaterial
-            color="#e8a33d"
+            map={schild}
             emissive="#c07a1a"
-            emissiveIntensity={0.5}
+            emissiveIntensity={0.25}
             roughness={0.7}
           />
         </mesh>

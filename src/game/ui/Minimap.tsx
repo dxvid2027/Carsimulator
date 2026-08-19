@@ -5,7 +5,15 @@ import { WELT, hoeheBei, type Terraindaten } from '../world/heightmap';
 import { STRECKE, type Streckendaten } from '../world/strecke';
 import { planeHaufen } from '../world/Heuballen';
 import type { Strassennetz } from '../world/strassennetz';
-import { dorfOrt, felsenfeldOrt, stuntparkOrt, windmuehleOrt } from '../world/orte';
+import {
+  STRASSENBAUTEN,
+  aussichtsturmOrt,
+  dorfOrt,
+  felsenfeldOrt,
+  strassenplatz,
+  stuntparkOrt,
+  windmuehleOrt,
+} from '../world/orte';
 import { PISTEN_WEGE } from '../world/Offroad';
 
 /**
@@ -130,8 +138,24 @@ export function Minimap({
       { name: 'Village', symbol: '⌂', farbe: '#e8dcc0', ...dorfOrt(terrain, netz) },
       { name: 'Windmill', symbol: '✳', farbe: '#e8dcc0', ...windmuehleOrt(terrain, netz) },
       { name: 'Rocks', symbol: '◆', farbe: '#b9b2a6', ...felsenfeldOrt(terrain, netz) },
+      { name: 'Lookout', symbol: '⌇', farbe: '#ff6f5e', ...aussichtsturmOrt(terrain, netz) },
+      {
+        name: 'Gas',
+        symbol: '⛽',
+        farbe: '#ffd166',
+        ...strassenplatz(
+          terrain, strecke, STRASSENBAUTEN.tankstelle.anteil, STRASSENBAUTEN.tankstelle.seitlich,
+        ),
+      },
+      // Die Rampen am Straßenrand – dieselbe Quelle wie die 3D-Welt
+      ...STRASSENBAUTEN.rampen.map((r, i) => ({
+        name: i === 0 ? 'Ramp' : '',
+        symbol: '▴',
+        farbe: '#ff9f43',
+        ...strassenplatz(terrain, strecke, r.anteil, r.seitlich),
+      })),
     ],
-    [terrain, netz],
+    [terrain, netz, strecke],
   );
 
   /** Mittelpunkte der Heuballen-Haufen, damit man sie ansteuern kann. */

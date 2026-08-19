@@ -21,11 +21,15 @@ import { Baeume } from './world/Baeume';
 import { Deko } from './world/Deko';
 import { Offroad } from './world/Offroad';
 import { Stuntpark } from './world/Stuntpark';
+import { Attraktionen } from './world/Attraktionen';
 import {
+  STRASSENBAUTEN,
   STUNTPARK,
+  aussichtsturmOrt,
   dorfOrt,
   felsenfeldOrt,
   stuntparkOrt,
+  strassenplatz,
   windmuehleOrt,
 } from './world/orte';
 import { Sonne } from './world/Sonne';
@@ -79,7 +83,15 @@ if (import.meta.env.DEV) {
 }
 
 /** Im Entwicklungsmodus die besonderen Orte in der Konsole bereitstellen. */
-function OrteFuerEntwicklung({ terrain, netz }: { terrain: Terraindaten; netz: Strassennetz }) {
+function OrteFuerEntwicklung({
+  terrain,
+  netz,
+  strecke,
+}: {
+  terrain: Terraindaten;
+  netz: Strassennetz;
+  strecke: Streckendaten;
+}) {
   useEffect(() => {
     if (!import.meta.env.DEV) return;
     (window as unknown as { orte: unknown }).orte = {
@@ -87,8 +99,15 @@ function OrteFuerEntwicklung({ terrain, netz }: { terrain: Terraindaten; netz: S
       dorf: dorfOrt(terrain, netz),
       windmuehle: windmuehleOrt(terrain, netz),
       felsenfeld: felsenfeldOrt(terrain, netz),
+      aussichtsturm: aussichtsturmOrt(terrain, netz),
+      tankstelle: strassenplatz(
+        terrain, strecke, STRASSENBAUTEN.tankstelle.anteil, STRASSENBAUTEN.tankstelle.seitlich,
+      ),
+      rampen: STRASSENBAUTEN.rampen.map((r) =>
+        strassenplatz(terrain, strecke, r.anteil, r.seitlich),
+      ),
     };
-  }, [terrain, netz]);
+  }, [terrain, netz, strecke]);
   return null;
 }
 
@@ -237,7 +256,7 @@ export function Scene({ pausiert, sparsam, onWeltFertig }: SceneProps) {
       />
 
       <Sonne />
-      <OrteFuerEntwicklung terrain={terrain} netz={netz} />
+      <OrteFuerEntwicklung terrain={terrain} netz={netz} strecke={strecke} />
 
       {/* Nebel in der Farbe des Horizonts, damit die Kartenkante verschwimmt */}
       <fog attach="fog" args={['#c8d6e2', 340, 1250]} />
@@ -255,11 +274,12 @@ export function Scene({ pausiert, sparsam, onWeltFertig }: SceneProps) {
           <Road key={i} strecke={n} terrain={terrain} geschlossen={false} breite={8.5} />
         ))}
         <Leitplanken strecke={strecke} terrain={terrain} netz={netz} />
-        <Baeume terrain={terrain} netz={netz} />
+        <Baeume terrain={terrain} netz={netz} strecke={strecke} />
         <Heuballen terrain={terrain} strecke={strecke} netz={netz} />
-        <Deko terrain={terrain} netz={netz} />
+        <Deko terrain={terrain} netz={netz} strecke={strecke} />
         <Offroad terrain={terrain} strecke={strecke} netz={netz} />
         <Stuntpark terrain={terrain} netz={netz} />
+        <Attraktionen terrain={terrain} netz={netz} strecke={strecke} />
         <Weltgrenze />
         <Car followRef={autoRef} strecke={strecke} />
       </Physics>

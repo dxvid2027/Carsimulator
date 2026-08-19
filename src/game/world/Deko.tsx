@@ -5,6 +5,7 @@ import { Euler, Group, Matrix4, Quaternion, Vector3 } from 'three';
 import { WELT, hoeheBei, steigungBei, type Terraindaten } from './heightmap';
 import { bebautesGebiet, dorfOrt, windmuehleOrt } from './orte';
 import type { Strassennetz } from './strassennetz';
+import type { Streckendaten } from './strecke';
 
 /**
  * Ausstattung der Landschaft: Felsen, Büsche und ein kleines Dorf.
@@ -47,6 +48,7 @@ interface Platz {
 function verteile(
   terrain: Terraindaten,
   netz: Strassennetz,
+  strecke: Streckendaten,
   anzahl: number,
   keim: number,
   maxSteigung: number,
@@ -61,7 +63,7 @@ function verteile(
     const x = (rnd() - 0.5) * 2 * rand;
     const z = (rnd() - 0.5) * 2 * rand;
     if (netz.randabstand(x, z) < minAbstand) continue;
-    if (bebautesGebiet(terrain, netz, x, z)) continue;
+    if (bebautesGebiet(terrain, netz, strecke, x, z)) continue;
     if (steigungBei(terrain, x, z) > maxSteigung) continue;
     liste.push({
       x,
@@ -141,18 +143,20 @@ function Windmuehle({ x, y, z }: { x: number; y: number; z: number }) {
 
 interface DekoProps {
   terrain: Terraindaten;
+  /** Wird für die Sperrkreise um Tankstelle und Straßenrampen gebraucht. */
+  strecke: Streckendaten;
   /** Kennt alle Fahrwege – hält Felsen, Büsche und Häuser von jeder Fahrbahn fern. */
   netz: Strassennetz;
 }
 
-export function Deko({ terrain, netz }: DekoProps) {
+export function Deko({ terrain, netz, strecke }: DekoProps) {
   const felsen = useMemo(
-    () => verteile(terrain, netz, DEKO.felsen, DEKO.keim, 0.85, DEKO.abstandStrasse),
-    [terrain, netz],
+    () => verteile(terrain, netz, strecke, DEKO.felsen, DEKO.keim, 0.85, DEKO.abstandStrasse),
+    [terrain, netz, strecke],
   );
   const buesche = useMemo(
-    () => verteile(terrain, netz, DEKO.buesche, DEKO.keim + 7, 0.6, DEKO.abstandStrasse),
-    [terrain, netz],
+    () => verteile(terrain, netz, strecke, DEKO.buesche, DEKO.keim + 7, 0.6, DEKO.abstandStrasse),
+    [terrain, netz, strecke],
   );
 
   const felsenMatrizen = useMemo(() => matrizen(felsen, (p) => p.groesse * 0.35), [felsen]);

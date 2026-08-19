@@ -128,10 +128,21 @@ Jeder weitere Push auf den Branch baut die Seite automatisch neu.
   gestapelt. Sie sind bewegliche Körper – man fährt hindurch und treibt sie
   auseinander.
 - **Karte** oben rechts, mit **M** groß aufklappbar: eingefärbtes Gelände,
-  Rundkurs, Nebenstraßen, Geländepisten, Heuballen und Renn-Tor.
+  Rundkurs, Nebenstraßen, Geländepisten, Heuballen, Renn-Tor und Marker für
+  alle Sehenswürdigkeiten (Stuntpark, Rampen, Tankstelle, Aussichtsturm,
+  Dorf, Windmühle, Felsenfeld).
 - **Gelände**: drei Schotterpisten, die dem Boden mit allen Bodenwellen folgen
   (bewusst nicht geglättet – genau das macht Offroad aus), Sprungrampen zum
   Abheben und ein Felsenfeld zum Drüberklettern.
+- **Stuntpark** auf eingeebnetem Kiesplatz: Weitsprung über zwei einander
+  zugewandte Rampen, eine große Rampe auf eine Holzplattform mit Abfahrt,
+  drei Containerstapel zum Draufspringen, Reifenstapel und ein Schild.
+  Alle Rampen sind echte Keile mit passgenauem Kollisionskörper – keine
+  gekippten Quader, an deren Unterkante man hängen bleibt.
+- **Drei Rampen direkt am Straßenrand**: von der Fahrbahn abbiegen, drüber
+  springen, im Gelände landen.
+- **Sehenswürdigkeiten**: Aussichtsturm mit Blinklicht, Felsentor zum
+  Durchfahren, Tankstelle am Rundkurs und drei Heißluftballons am Himmel.
 - **Landschaft**: Felsen, Büsche, ein kleines Dorf mit Häusern, eine Windmühle
   mit drehenden Flügeln als Wahrzeichen und eine sichtbare Sonne.
 - **Zwei Nebenstraßen** quer über die Karte, ebenfalls ins Terrain geschnitten.
@@ -171,6 +182,10 @@ src/
       Heuballen.tsx         Bewegliche Heuballen in Haufen
       Offroad.tsx           Schotterpisten, Sprungrampen, Felsenfeld
       Deko.tsx              Felsen, Büsche, Dorf, Windmühle
+      orte.ts               Wo die Sehenswürdigkeiten stehen (eine Quelle
+                            für 3D-Welt und Karte)
+      Stuntpark.tsx         Rampen, Plattform, Container, Kiesplatz
+      Attraktionen.tsx      Aussichtsturm, Felsentor, Tankstelle, Ballons
       Sonne.tsx             Sichtbare Sonnenscheibe
       strecke.ts            Rundkurs erzeugen und ins Terrain einschneiden
       Terrain.tsx           Sichtbares Terrain (Kacheln) + Heightfield-Kollider
@@ -203,11 +218,12 @@ tools/
   rennen-test.ts            Headless-Test der Rennlogik
   heuballen-test.ts         Headless-Test der Heuballen
   wege-test.ts              Prüft, ob alle Wege frei befahrbar sind
+  orte-test.ts              Prüft die Bauplätze der Sehenswürdigkeiten
 ```
 
 ## Testen ohne Browser
 
-Alle vier Tests starten die echte Physik bzw. Logik ohne Grafik und benutzen
+Alle acht Tests starten die echte Physik bzw. Logik ohne Grafik und benutzen
 dieselben Dateien wie das Spiel. Änderst du einen Wert in der Konfiguration,
 siehst du die Auswirkung sofort in Zahlen.
 
@@ -354,6 +370,29 @@ begrenzt – auf einem langsamen Gerät liefe die Uhr dadurch zu langsam und die
 Zeiten wären falsch. Sie misst deshalb echte Zeit (siehe `RennenTakt` in
 `Scene.tsx`).
 
+### Orte
+
+```bash
+npm run orte
+```
+
+Prüft die Bauplätze der Sehenswürdigkeiten. Der Stuntpark braucht ebenen
+Boden: Rampen, Plattform und Container sind gerade Körper und würden im Hang
+mit einer Ecke in der Luft hängen. `ebneFlaeche` in `heightmap.ts` ebnet die
+Fläche deshalb ein – **bevor** der Kollisionskörper gebaut wird.
+
+| Messung | Wert |
+|---|---|
+| Höhenabweichung im Park (Radius 52 m) | 0,000 m |
+| Abstand des Parks zur nächsten Straße | 103 m (eingeebnet wird bis 88 m) |
+| Höhenänderung auf dem Rundkurs | 0,0000 m (keine Straße verbogen) |
+| Bauplätze am Straßenrand | 10–12 m neben der Fahrbahn, Front zur Straße |
+
+Ein Fehler, den dieser Test gefunden hat: Nach dem Einebnen war die neue
+flache Fläche der beste Platz für das **Dorf** – also verschob sich bei der
+nächsten Suche der Stuntpark um 600 m, und die Kartenmarker zeigten ins Leere.
+Seitdem merkt sich `orte.ts` jeden Ort pro Welt und sucht ihn nur einmal.
+
 ## Nützliche Hinweise
 
 - **Achsen:** `+Z` ist die Fahrtrichtung, `+Y` ist oben, `+X` ist links.
@@ -388,7 +427,7 @@ npm run typecheck  # TypeScript prüfen
 
 ## Nächste Schritte
 
-- Weitere Aktivitäten in der offenen Welt (Sprungschanzen, Zeitfahrten)
+- Weitere Aktivitäten in der offenen Welt (Zeitfahrten, Punkte fürs Springen)
 - Cascaded Shadow Maps statt eines mitwandernden Schattenbereichs
 - LOD für Terrain und Bäume in der Ferne
 - Motorgeräusch und Reifenquietschen

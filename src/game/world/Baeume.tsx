@@ -3,6 +3,7 @@ import { CylinderCollider, RigidBody } from '@react-three/rapier';
 import { Euler, Matrix4, Quaternion, Vector3 } from 'three';
 import { WELT, hoeheBei, steigungBei, type Terraindaten } from './heightmap';
 import type { Strassennetz } from './strassennetz';
+import type { Streckendaten } from './strecke';
 import { bebautesGebiet } from './orte';
 
 /**
@@ -43,7 +44,11 @@ interface Baum {
   drehung: number;
 }
 
-function platziereBaeume(terrain: Terraindaten, netz: Strassennetz): Baum[] {
+function platziereBaeume(
+  terrain: Terraindaten,
+  netz: Strassennetz,
+  strecke: Streckendaten,
+): Baum[] {
   const rnd = zufall(KEIM);
   const baeume: Baum[] = [];
   const rand = WELT.groesse / 2 - 20;
@@ -59,7 +64,7 @@ function platziereBaeume(terrain: Terraindaten, netz: Strassennetz): Baum[] {
     if (Math.hypot(x, z) < WELT.startFlaeche + 20) continue;
     // Nicht auf oder direkt neben irgendeinem Fahrweg
     if (netz.randabstand(x, z) < ABSTAND_STRASSE) continue;
-    if (bebautesGebiet(terrain, netz, x, z)) continue;
+    if (bebautesGebiet(terrain, netz, strecke, x, z)) continue;
     // Nicht an steilen Hängen
     if (steigungBei(terrain, x, z) > MAX_STEIGUNG) continue;
 
@@ -78,6 +83,8 @@ interface BaeumeProps {
   terrain: Terraindaten;
   /** Kennt alle Fahrwege – hält die Bäume von jeder Fahrbahn fern. */
   netz: Strassennetz;
+  /** Wird für die Sperrkreise um Tankstelle und Straßenrampen gebraucht. */
+  strecke: Streckendaten;
 }
 
 /** Höhe des Stamms bei Größenfaktor 1. */
@@ -86,8 +93,11 @@ const STAMM_HOEHE = 3.2;
 const KRONE_HOEHE = 6.5;
 const KRONE_RADIUS = 2.3;
 
-export function Baeume({ terrain, netz }: BaeumeProps) {
-  const baeume = useMemo(() => platziereBaeume(terrain, netz), [terrain, netz]);
+export function Baeume({ terrain, netz, strecke }: BaeumeProps) {
+  const baeume = useMemo(
+    () => platziereBaeume(terrain, netz, strecke),
+    [terrain, netz, strecke],
+  );
 
   const { staemme, kronen } = useMemo(() => {
     const q = new Quaternion();

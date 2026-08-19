@@ -300,7 +300,7 @@ export function Offroad({ terrain, strecke, netz }: OffroadProps) {
       const z = mitte.z + Math.sin(winkel) * radius;
       // Einzelne Blöcke dürfen trotzdem nicht auf einer Piste landen
       if (netz.randabstand(x, z) < 5) continue;
-      if (bebautesGebiet(terrain, netz, x, z)) continue;
+      if (bebautesGebiet(terrain, netz, strecke, x, z)) continue;
       const groesse = 1.3 + rnd() * 2.6;
       bloecke.push({
         x,

@@ -16,7 +16,16 @@ import { WELT, ebneFlaeche, erzeugeTerrain, hoeheBei, steigungBei } from '../src
 import { STRECKE, erzeugeWelt } from '../src/game/world/strecke';
 import { baueStrassennetz } from '../src/game/world/strassennetz';
 import { OFFROAD, PISTEN_WEGE } from '../src/game/world/Offroad';
-import { STUNTPARK, dorfOrt, felsenfeldOrt, stuntparkOrt, windmuehleOrt } from '../src/game/world/orte';
+import {
+  STRASSENBAUTEN,
+  STUNTPARK,
+  aussichtsturmOrt,
+  dorfOrt,
+  felsenfeldOrt,
+  strassenplatz,
+  stuntparkOrt,
+  windmuehleOrt,
+} from '../src/game/world/orte';
 
 const terrain = erzeugeTerrain();
 const { strecke, nebenstrassen } = erzeugeWelt(terrain);
@@ -117,6 +126,7 @@ const orte = [
   ['Dorf', dorf],
   ['Windmühle', muehle],
   ['Felsenfeld', felsen],
+  ['Aussichtsturm', aussichtsturmOrt(terrain, netz)],
 ] as const;
 let minAbstand = Infinity;
 let paar = '';
@@ -135,5 +145,34 @@ pruefe('Orte getrennt', minAbstand > 120, `engstes Paar ${paar}: ${minAbstand.to
 const rand = WELT.groesse / 2 - 60;
 const drin = orte.every(([, o]) => Math.abs(o.x) < rand && Math.abs(o.z) < rand);
 pruefe('Orte in der Welt', drin, orte.map(([n, o]) => `${n} (${o.x.toFixed(0)}, ${o.z.toFixed(0)})`).join(', '));
+
+// 7. Bauplätze am Straßenrand: neben der Fahrbahn und richtig gedreht
+const plaetze: [string, ReturnType<typeof strassenplatz>][] = [
+  [
+    'Tankstelle',
+    strassenplatz(
+      terrain, strecke, STRASSENBAUTEN.tankstelle.anteil, STRASSENBAUTEN.tankstelle.seitlich,
+    ),
+  ],
+  ...STRASSENBAUTEN.rampen.map(
+    (r, i) =>
+      [`Rampe ${i + 1}`, strassenplatz(terrain, strecke, r.anteil, r.seitlich)] as [
+        string,
+        ReturnType<typeof strassenplatz>,
+      ],
+  ),
+];
+for (const [name, pl] of plaetze) {
+  const d = netz.randabstand(pl.x, pl.z);
+  // Ein Schritt in Blickrichtung muss näher an die Straße führen
+  const vorX = pl.x + Math.sin(pl.gier) * 8;
+  const vorZ = pl.z + Math.cos(pl.gier) * 8;
+  const dVor = netz.randabstand(vorX, vorZ);
+  pruefe(
+    `Bauplatz ${name}`,
+    d > 4 && dVor < d,
+    `${d.toFixed(1)} m neben der Fahrbahn, Blickrichtung führt auf ${dVor.toFixed(1)} m heran`,
+  );
+}
 
 console.log(`\n${fehler === 0 ? 'Alle Prüfungen bestanden.' : `${fehler} Prüfung(en) fehlgeschlagen.`}\n`);
