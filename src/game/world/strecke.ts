@@ -374,14 +374,31 @@ export function abstandZurStrecke(strecke: Streckendaten, x: number, z: number) 
   return { distanz: Math.sqrt(besteDistanz), index: besterIndex };
 }
 
-/** Erzeugt Terrain und Strecke in der richtigen Reihenfolge. */
+/**
+ * Erzeugt Rundkurs und Nebenstraßen in der richtigen Reihenfolge.
+ *
+ * Die Reihenfolge ist entscheidend:
+ *   1. Beide Straßenverläufe werden vom UNVERÄNDERTEN Terrain abgelesen
+ *   2. Zuerst werden die Nebenstraßen eingeschnitten
+ *   3. Danach der Rundkurs – er überschreibt die Kreuzungen und bleibt
+ *      dadurch gleichmäßig. Andersherum würde eine kreuzende Nebenstraße
+ *      eine Welle in den Rundkurs drücken.
+ *   4. Zum Schluss werden die Straßenhöhen an das fertige Terrain angeglichen
+ */
 export function erzeugeWelt(terrain: Terraindaten) {
   const strecke = erzeugeStrecke(terrain);
+
+  const rand = WELT.groesse / 2 - 70;
+  const nebenstrassen = [
+    erzeugeNebenstrasse(terrain, { x: -rand, z: -rand * 0.35 }, { x: rand, z: rand * 0.5 }, 110),
+    erzeugeNebenstrasse(terrain, { x: rand * 0.6, z: -rand }, { x: -rand * 0.7, z: rand }, -85),
+  ];
+
+  for (const n of nebenstrassen) schneideStreckeEin(terrain, n);
   schneideStreckeEin(terrain, strecke);
 
   /*
-    Wichtiger letzter Schritt: Die Streckenhöhen an das eingeschnittene Terrain
-    angleichen.
+    Die Streckenhöhen an das eingeschnittene Terrain angleichen.
 
     Warum? Die Kurve ist glatt, das Terrain dagegen ein Gitter aus Punkten alle
     3,9 m. Zwischen zwei Gitterpunkten interpoliert Rapier geradlinig – die
@@ -390,14 +407,81 @@ export function erzeugeWelt(terrain: Terraindaten) {
 
     Würden wir das sichtbare Straßenband auf die glatte Kurve legen, führe das
     Auto (das ja auf dem Kollisionskörper fährt) sichtbar über oder unter der
-    Straße. Indem wir die Streckenhöhen hier vom Terrain ablesen, stimmen Bild
-    und Physik von vornherein überein.
+    Straße. Indem wir die Höhen hier vom Terrain ablesen, stimmen Bild und
+    Physik von vornherein überein.
   */
-  for (const p of strecke.punkte) {
-    p.y = hoeheBei(terrain, p.x, p.z);
+  for (const p of strecke.punkte) p.y = hoeheBei(terrain, p.x, p.z);
+  for (const n of nebenstrassen) {
+    for (const p of n.punkte) p.y = hoeheBei(terrain, p.x, p.z);
   }
 
-  return strecke;
+  return { strecke, nebenstrassen };
+}
+
+/**
+ * Erzeugt eine offene Nebenstraße zwischen zwei Punkten.
+ *
+ * Sie wird genauso ins Terrain eingeschnitten wie der Rundkurs und braucht
+ * deshalb ebenfalls keinen eigenen Kollisionskörper. Anders als der Rundkurs
+ * ist sie nicht geschlossen – Anfang und Ende hängen in der Landschaft.
+ */
+export function erzeugeNebenstrasse(
+  terrain: Terraindaten,
+  von: { x: number; z: number },
+  nach: { x: number; z: number },
+  /** Seitliche Auslenkung in der Mitte, damit die Straße nicht schnurgerade ist. */
+  schwung = 90,
+): Streckendaten {
+  const mitteX = (von.x + nach.x) / 2;
+  const mitteZ = (von.z + nach.z) / 2;
+  // Senkrecht zur Verbindung auslenken
+  const dx = nach.x - von.x;
+  const dz = nach.z - von.z;
+  const laenge = Math.hypot(dx, dz) || 1;
+  const nx = -dz / laenge;
+  const nz = dx / laenge;
+
+  const kurve = new CatmullRomCurve3(
+    [
+      new Vector3(von.x, 0, von.z),
+      new Vector3(mitteX + nx * schwung, 0, mitteZ + nz * schwung),
+      new Vector3(mitteX - nx * schwung * 0.5, 0, mitteZ - nz * schwung * 0.5),
+      new Vector3(nach.x, 0, nach.z),
+    ],
+    false,
+    'catmullrom',
+    0.5,
+  );
+
+  const anzahl = Math.max(32, Math.round(kurve.getLength() / STRECKE.abtastung));
+  const roh = kurve.getSpacedPoints(anzahl - 1);
+
+  // Höhen glätten wie beim Rundkurs, aber ohne Ringschluss
+  let hoehen = roh.map((p) => hoeheBei(terrain, p.x, p.z));
+  for (let d = 0; d < STRECKE.glaettung; d++) {
+    const naechste = hoehen.slice();
+    for (let i = 1; i < hoehen.length - 1; i++) {
+      naechste[i] = (hoehen[i - 1] + hoehen[i] * 2 + hoehen[i + 1]) / 4;
+    }
+    hoehen = naechste;
+  }
+
+  const punkte: Streckenpunkt[] = [];
+  let distanz = 0;
+  for (let i = 0; i < roh.length; i++) {
+    const p = roh[i];
+    const naechster = roh[Math.min(i + 1, roh.length - 1)];
+    const vorheriger = roh[Math.max(i - 1, 0)];
+    let rx = naechster.x - vorheriger.x;
+    let rz = naechster.z - vorheriger.z;
+    const l = Math.hypot(rx, rz) || 1;
+    rx /= l;
+    rz /= l;
+    if (i > 0) distanz += Math.hypot(p.x - roh[i - 1].x, p.z - roh[i - 1].z);
+    punkte.push({ x: p.x, y: hoehen[i], z: p.z, rx, rz, distanz });
+  }
+
+  return { punkte, laenge: distanz, startIndex: 0 };
 }
 
 /** Sinnvolle Startposition: auf der Straße, in Fahrtrichtung. */

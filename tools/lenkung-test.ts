@@ -64,7 +64,7 @@ function welt() {
 }
 
 type Welt = ReturnType<typeof welt>;
-const LEER: FahrEingabe = { gas: 0, bremse: 0, lenken: 0, handbremse: false, reset: false };
+const LEER: FahrEingabe = { gas: 0, bremse: 0, lenken: 0, handbremse: false, reset: false, wenden: false };
 
 function schritt(w: Welt, e: Partial<FahrEingabe> = {}) {
   fahrschritt(w.controller, w.body, { ...LEER, ...e }, w.zustand);

@@ -69,8 +69,12 @@ export const FAHRZEUG = {
      * Muss zur größeren Masse passen, sonst sackt der Wagen durch.
      */
     haerte: 52,
-    /** Dämpfung beim Einfedern. */
-    daempfungDruck: 1.4,
+    /**
+     * Dämpfung beim Einfedern.
+     * Hoch angesetzt: Beim Bremsen wandert das Gewicht nach vorn, und eine
+     * weiche Vorderachse lässt die Nase dann tief eintauchen.
+     */
+    daempfungDruck: 3.5,
     /** Dämpfung beim Ausfedern. Sollte größer als daempfungDruck sein. */
     daempfungZug: 2.4,
     /** Maximaler Federweg in Metern. Geländefahrwerk = viel Weg. */
@@ -120,14 +124,28 @@ export const FAHRZEUG = {
     /** Anteil der Motorkraft beim Rückwärtsfahren. */
     rueckwaertsAnteil: 0.45,
     /** Bremskraft der Betriebsbremse. */
-    bremskraft: 1300,
+    /**
+   * Bremskraft.
+   *
+   * Bewusst niedrig. Mit dem alten Wert verzögerte der Wagen mit 2,3 g – das
+   * liegt dicht an der Kippgrenze von 2,6 g (Radstand vorn / Schwerpunkthöhe),
+   * die Hinterräder hoben 90 % der Bremszeit ab und die Nase tauchte 54° tief
+   * ein. Mit 200 sind es 1,5 g: kräftig, aber die Räder bleiben unten.
+   */
+  bremskraft: 200,
     /** Bremskraft der Handbremse (wirkt nur hinten). */
     handbremskraft: 900,
     /** Leichtes Bremsen beim Ausrollen ohne Gas (Motorbremse + Rollwiderstand). */
     rollwiderstand: 25,
-    /** Bremskraft-Verteilung vorne/hinten (vorne bremst stärker, wie im echten Auto). */
-    bremseVorne: 0.6,
-    bremseHinten: 0.4,
+    /**
+     * Bremskraft-Verteilung vorne/hinten.
+     *
+     * Bei einem so hohen Fahrzeug hebelt eine frontlastige Bremse das Heck an –
+     * gemessen wurden 54° Nickwinkel mit abhebenden Hinterrädern. Deshalb
+     * bremst hier die Hinterachse etwas stärker als die Vorderachse.
+     */
+    bremseVorne: 0.45,
+    bremseHinten: 0.55,
   },
 
   // ---------- Lenkung ----------
@@ -266,6 +284,18 @@ export const FAHRZEUG = {
      * zurück. 0 schaltet die Automatik ab (dann hilft nur noch Taste R).
      */
     autoResetSekunden: 3,
+
+    /**
+     * Nick-Begrenzung: Ab diesem Winkel (Grad) wird das Eintauchen der Nase
+     * bzw. das Aufstellen des Hecks aktiv gebremst.
+     *
+     * Das ist das Sicherheitsnetz gegen den Überschlag beim Bremsen. Die
+     * Bremskraft allein reicht nicht: bergab oder nach einem Sprung kann das
+     * Auto sonst trotzdem über die Vorderachse abrollen.
+     */
+    abNickwinkel: 9,
+    /** Wie stark gegengehalten wird. 0 schaltet die Begrenzung ab. */
+    nickBegrenzung: 2.6,
   },
 
   // ---------- Anzeige (nur HUD, keine Physik) ----------

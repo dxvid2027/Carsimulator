@@ -15,6 +15,8 @@ export const touchEingabe = {
   handbremse: false,
   /** Wird gesetzt, wenn der Reset-Knopf gedrückt wurde. */
   reset: false,
+  /** Wird gesetzt, wenn der Wenden-Knopf gedrückt wurde. */
+  wenden: false,
 };
 
 /**

@@ -68,7 +68,7 @@ export function StartScreen({ vorschlag, onStart }: StartScreenProps) {
                 <b>W A S D</b> or arrow keys to drive
               </div>
               <div>
-                <b>Space</b> handbrake · <b>C</b> camera · <b>R</b> reset · <b>Esc</b> pause
+                <b>Space</b> handbrake · <b>T</b> turn · <b>M</b> map · <b>Esc</b> pause
               </div>
             </>
           ) : (

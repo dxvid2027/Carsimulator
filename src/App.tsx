@@ -9,6 +9,7 @@ import { PauseMenu } from './game/ui/PauseMenu';
 import { RaceHud } from './game/ui/RaceHud';
 import { Minimap } from './game/ui/Minimap';
 import type { Streckendaten } from './game/world/strecke';
+import type { Terraindaten } from './game/world/heightmap';
 import { rennen, rennenBeenden, rennenStarten } from './game/race/rennen';
 import { touchEingabe } from './game/input/touchInput';
 import {
@@ -36,8 +37,14 @@ export default function App() {
   const [steuerung, setSteuerung] = useState<Steuerungsart>(
     () => gespeicherteSteuerung() ?? VORSCHLAG,
   );
-  /** Die Strecke kommt aus der 3D-Szene und wird für die Minimap gebraucht. */
-  const [strecke, setStrecke] = useState<Streckendaten | null>(null);
+  /** Terrain und Strecke kommen aus der 3D-Szene und werden für die Karte gebraucht. */
+  const [welt, setWelt] = useState<{
+    terrain: Terraindaten;
+    strecke: Streckendaten;
+    nebenstrassen: Streckendaten[];
+  } | null>(null);
+  /** Ist die große Karte geöffnet? */
+  const [karteOffen, setKarteOffen] = useState(false);
 
   const touch = steuerung === 'touch';
 
@@ -67,6 +74,20 @@ export default function App() {
       if (e.code !== 'KeyE') return;
       if (rennen.phase === 'bereit') rennenStarten();
       else if (rennen.phase === 'beendet') rennenBeenden();
+    };
+    window.addEventListener('keydown', taste);
+    return () => window.removeEventListener('keydown', taste);
+  }, []);
+
+  /*
+    Taste M öffnet und schließt die große Karte.
+    Bewusst nicht R: R setzt das Auto zurück und soll das auch weiterhin tun –
+    sonst könnte man die Karte nicht öffnen, ohne den Wagen zu versetzen.
+  */
+  useEffect(() => {
+    const taste = (e: KeyboardEvent) => {
+      if (e.code !== 'KeyM') return;
+      setKarteOffen((offen) => !offen);
     };
     window.addEventListener('keydown', taste);
     return () => window.removeEventListener('keydown', taste);
@@ -134,7 +155,7 @@ export default function App() {
       >
         <Suspense fallback={null}>
           {/* Solange der Startbildschirm offen ist, steht die Physik still */}
-          <Scene pausiert={!laeuft} onWeltFertig={setStrecke} />
+          <Scene pausiert={!laeuft} onWeltFertig={setWelt} />
         </Suspense>
       </Canvas>
 
@@ -144,9 +165,19 @@ export default function App() {
 
       {laeuft && <RaceHud />}
 
-      {laeuft && strecke && <Minimap strecke={strecke} />}
+      {laeuft && welt && (
+        <Minimap
+          strecke={welt.strecke}
+          nebenstrassen={welt.nebenstrassen}
+          terrain={welt.terrain}
+          gross={karteOffen}
+          onSchliessen={() => setKarteOffen(false)}
+        />
+      )}
 
-      {touch && laeuft && <TouchControls onPause={pausieren} />}
+      {touch && laeuft && !karteOffen && (
+        <TouchControls onPause={pausieren} onKarte={() => setKarteOffen(true)} />
+      )}
 
       {phase === 'start' && <StartScreen vorschlag={VORSCHLAG} onStart={starten} />}
 

@@ -13,6 +13,8 @@ export interface FahrEingabe {
   handbremse: boolean;
   /** Reset angefordert (Taste R) – wird nach dem Auswerten zurückgesetzt. */
   reset: boolean;
+  /** Wenden auf der Stelle angefordert (Taste T). */
+  wenden: boolean;
 }
 
 /** Tastenzuordnung. `code` ist layout-unabhängig (funktioniert auch auf QWERTZ). */
@@ -23,6 +25,7 @@ const TASTEN = {
   rechts: ['KeyD', 'ArrowRight'],
   handbremse: ['Space'],
   reset: ['KeyR'],
+  wenden: ['KeyT'],
 };
 
 /**
@@ -39,6 +42,7 @@ export function useDrivingInput() {
     lenken: 0,
     handbremse: false,
     reset: false,
+    wenden: false,
   });
   /** Aktuell gedrückte Tasten. */
   const gedrueckt = useRef(new Set<string>());
@@ -76,6 +80,7 @@ export function useDrivingInput() {
     let lenken = (an(TASTEN.links) ? 1 : 0) - (an(TASTEN.rechts) ? 1 : 0);
     let handbremse = an(TASTEN.handbremse);
     let reset = an(TASTEN.reset);
+    let wenden = an(TASTEN.wenden);
 
     // --- Touch-Bedienung (iPad, Handy) ---
     // Der jeweils stärkere Wert gewinnt, damit Tastatur und Finger sich nicht
@@ -87,6 +92,10 @@ export function useDrivingInput() {
     if (touchEingabe.reset) {
       reset = true;
       touchEingabe.reset = false; // nur einmal auslösen
+    }
+    if (touchEingabe.wenden) {
+      wenden = true;
+      touchEingabe.wenden = false;
     }
 
     // --- Gamepad (falls eines verbunden ist) ---
@@ -114,6 +123,7 @@ export function useDrivingInput() {
     e.lenken = Math.max(-1, Math.min(1, lenken));
     e.handbremse = handbremse;
     e.reset = reset;
+    e.wenden = wenden;
   };
 
   return { eingabe, aktualisieren };

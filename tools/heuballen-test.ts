@@ -19,7 +19,7 @@ import type { FahrEingabe } from '../src/game/input/useDrivingInput';
 await RAPIER.init();
 
 const terrain = erzeugeTerrain();
-const strecke = erzeugeWelt(terrain);
+const { strecke } = erzeugeWelt(terrain);
 const ballen = planeHaufen(terrain, strecke);
 
 console.log('\n=== Heuballen-Test ===\n');
@@ -145,7 +145,7 @@ console.log(`   ${ballen.length} Ballen in bis zu ${HAUFEN.anzahl} Haufen`);
     controller.setWheelSideFrictionStiffness(i, grip.seite);
   }
   const zustand = neuerFahrZustand();
-  const LEER: FahrEingabe = { gas: 0, bremse: 0, lenken: 0, handbremse: false, reset: false };
+  const LEER: FahrEingabe = { gas: 0, bremse: 0, lenken: 0, handbremse: false, reset: false, wenden: false };
   const schritt = (e: Partial<FahrEingabe> = {}) => {
     fahrschritt(controller, body, { ...LEER, ...e }, zustand);
     world.step();

@@ -18,10 +18,12 @@ import { Terrain } from './world/Terrain';
 import { Road } from './world/Road';
 import { Leitplanken } from './world/Leitplanken';
 import { Baeume } from './world/Baeume';
+import { Deko } from './world/Deko';
+import { Sonne } from './world/Sonne';
 import { Heuballen } from './world/Heuballen';
 import { SunLight, SONNE } from './world/SunLight';
 import { Weltgrenze } from './world/Weltgrenze';
-import { erzeugeTerrain } from './world/heightmap';
+import { erzeugeTerrain, type Terraindaten } from './world/heightmap';
 import { erzeugeWelt, type Streckendaten } from './world/strecke';
 import { RaceZone } from './race/RaceZone';
 import { rennen, rennenAktualisieren, rennenVorbereiten } from './race/rennen';
@@ -84,8 +86,12 @@ interface SceneProps {
   pausiert: boolean;
   /** Weniger Effekte für schwächere Geräte. */
   sparsam?: boolean;
-  /** Wird mit der erzeugten Strecke aufgerufen – die Minimap braucht sie. */
-  onWeltFertig?: (strecke: Streckendaten) => void;
+  /** Wird mit der erzeugten Welt aufgerufen – die Karte braucht Terrain und Strecke. */
+  onWeltFertig?: (welt: {
+    terrain: Terraindaten;
+    strecke: Streckendaten;
+    nebenstrassen: Streckendaten[];
+  }) => void;
 }
 
 export function Scene({ pausiert, sparsam, onWeltFertig }: SceneProps) {
@@ -99,19 +105,19 @@ export function Scene({ pausiert, sparsam, onWeltFertig }: SceneProps) {
    * Strecke liest ihre Höhe aus dem Terrain und schneidet sich anschließend
    * hinein. Erst danach darf der Kollisionskörper gebaut werden.
    */
-  const { terrain, strecke } = useMemo(() => {
+  const { terrain, strecke, nebenstrassen } = useMemo(() => {
     const t = erzeugeTerrain();
-    const s = erzeugeWelt(t);
+    const { strecke: s, nebenstrassen: n } = erzeugeWelt(t);
     // Kontrollpunkte und Bestzeit vorbereiten – das Rennen selbst startet erst,
     // wenn der Spieler in die Startzone fährt.
     rennenVorbereiten(s);
-    return { terrain: t, strecke: s };
+    return { terrain: t, strecke: s, nebenstrassen: n };
   }, []);
 
-  // Die Strecke einmal nach oben reichen, damit die Minimap sie zeichnen kann
+  // Welt einmal nach oben reichen, damit die Karte sie zeichnen kann
   useEffect(() => {
-    onWeltFertig?.(strecke);
-  }, [strecke, onWeltFertig]);
+    onWeltFertig?.({ terrain, strecke, nebenstrassen });
+  }, [terrain, strecke, nebenstrassen, onWeltFertig]);
 
   const wenigEffekte = sparsam || SPARSAM;
 
@@ -149,6 +155,8 @@ export function Scene({ pausiert, sparsam, onWeltFertig }: SceneProps) {
         distance={4000}
       />
 
+      <Sonne />
+
       {/* Nebel in der Farbe des Horizonts, damit die Kartenkante verschwimmt */}
       <fog attach="fog" args={['#c8d6e2', 340, 1250]} />
 
@@ -161,9 +169,13 @@ export function Scene({ pausiert, sparsam, onWeltFertig }: SceneProps) {
       <Physics timeStep={PHYSIK_DT} interpolate paused={pausiert} debug={DEBUG}>
         <Terrain daten={terrain} />
         <Road strecke={strecke} terrain={terrain} />
+        {nebenstrassen.map((n, i) => (
+          <Road key={i} strecke={n} terrain={terrain} geschlossen={false} breite={8.5} />
+        ))}
         <Leitplanken strecke={strecke} terrain={terrain} />
         <Baeume terrain={terrain} strecke={strecke} />
         <Heuballen terrain={terrain} strecke={strecke} />
+        <Deko terrain={terrain} strecke={strecke} />
         <Weltgrenze />
         <Car followRef={autoRef} strecke={strecke} />
       </Physics>

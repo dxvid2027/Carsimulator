@@ -78,10 +78,48 @@ export function Car({ followRef, strecke }: CarProps) {
     fahrZustand.current.kopfueberZeit = 0;
   };
 
+  /**
+   * Dreht das Auto auf der Stelle um 180°.
+   *
+   * Praktisch, wenn man in eine Sackgasse gefahren ist oder die Strecke in die
+   * andere Richtung fahren will – ohne die lange Wendeschleife. Die Position
+   * bleibt, nur die Blickrichtung dreht sich; das Auto wird dabei aufgerichtet
+   * und gestoppt, damit es nicht mit Schwung seitlich wegrutscht.
+   */
+  const wenden = () => {
+    const body = chassisRef.current;
+    if (!body) return;
+
+    const q = body.rotation();
+    // Aktuellen Gierwinkel auslesen und um 180° drehen
+    const gier = Math.atan2(2 * (q.w * q.y + q.x * q.z), 1 - 2 * (q.y * q.y + q.z * q.z));
+    const neu = gier + Math.PI;
+    body.setRotation({ x: 0, y: Math.sin(neu / 2), z: 0, w: Math.cos(neu / 2) }, true);
+
+    // Etwas anheben, damit das Auto beim Drehen nicht im Boden klemmt
+    const p = body.translation();
+    body.setTranslation({ x: p.x, y: p.y + 0.25, z: p.z }, true);
+    body.setLinvel({ x: 0, y: 0, z: 0 }, true);
+    body.setAngvel({ x: 0, y: 0, z: 0 }, true);
+    fahrZustand.current.lenkeinschlag = 0;
+  };
+
+  /** Verhindert, dass ein gehaltener Tastendruck dauernd auslöst. */
+  const wendenGedrueckt = useRef(false);
+
   // Eingabe einmal pro Frame einlesen (vor der Physik, priority sorgt für die Reihenfolge)
   useFrame(() => {
     aktualisieren();
     if (eingabe.current.reset) zuruecksetzen();
+
+    if (eingabe.current.wenden) {
+      if (!wendenGedrueckt.current) {
+        wendenGedrueckt.current = true;
+        wenden();
+      }
+    } else {
+      wendenGedrueckt.current = false;
+    }
 
     // Automatischer Reset, wenn das Auto zu lange auf dem Dach liegt
     const grenze = FAHRZEUG.hilfen.autoResetSekunden;

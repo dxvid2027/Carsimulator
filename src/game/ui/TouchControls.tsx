@@ -21,9 +21,11 @@ const LENKWEG = 75;
 interface TouchControlsProps {
   /** Wird gedrückt, wenn der Spieler pausieren will. */
   onPause: () => void;
+  /** Öffnet die große Karte. */
+  onKarte: () => void;
 }
 
-export function TouchControls({ onPause }: TouchControlsProps) {
+export function TouchControls({ onPause, onKarte }: TouchControlsProps) {
   const lenkzone = useRef<HTMLDivElement>(null);
   const lenkKnopf = useRef<HTMLDivElement>(null);
   const kameraText = useRef<HTMLSpanElement>(null);
@@ -178,10 +180,21 @@ export function TouchControls({ onPause }: TouchControlsProps) {
         <button
           className="touch-klein"
           onClick={() => {
+            touchEingabe.wenden = true;
+          }}
+        >
+          Turn
+        </button>
+        <button
+          className="touch-klein"
+          onClick={() => {
             touchEingabe.reset = true;
           }}
         >
           Reset
+        </button>
+        <button className="touch-klein" onClick={onKarte}>
+          Map
         </button>
         <button className="touch-klein touch-pause" onClick={onPause}>
           ❚❚

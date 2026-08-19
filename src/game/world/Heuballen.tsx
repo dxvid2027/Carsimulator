@@ -1,5 +1,6 @@
-import { useMemo } from 'react';
-import { CylinderCollider, RigidBody } from '@react-three/rapier';
+import { useMemo, useRef } from 'react';
+import { useFrame } from '@react-three/fiber';
+import { CylinderCollider, RigidBody, type RapierRigidBody } from '@react-three/rapier';
 import { CanvasTexture, RepeatWrapping, SRGBColorSpace } from 'three';
 import { STRECKE, abstandZurStrecke, type Streckendaten } from './strecke';
 import { hoeheBei, steigungBei, type Terraindaten } from './heightmap';
@@ -38,6 +39,14 @@ export const HAUFEN = {
   abstandStrasse: STRECKE.breite / 2 + 2.6,
   /** Zufallskeim, damit die Haufen immer gleich liegen. */
   keim: 8123,
+  /**
+   * Nach dieser Zeit (Sekunden) baut sich ein umgefahrener Haufen wieder auf.
+   * Gezählt wird erst, wenn der Ballen zur Ruhe gekommen ist – man kann also
+   * in Ruhe weiterspielen, ohne dass es einem vor der Nase zurückspringt.
+   */
+  aufbauNach: 30,
+  /** Ab dieser Verschiebung (Meter) gilt ein Ballen als umgefahren. */
+  gestoertAb: 0.6,
 } as const;
 
 function zufall(keim: number) {
@@ -171,6 +180,28 @@ export function planeHaufen(terrain: Terraindaten, strecke: Streckendaten): Ball
   return ballen;
 }
 
+/**
+ * Die Drehung eines liegenden Rundballens als Quaternion.
+ *
+ * Entspricht der Anfangsdrehung `[0, gier, PI/2]`: erst um die Hochachse in
+ * Streckenrichtung, dann um Z gekippt, damit die Zylinderachse waagerecht
+ * liegt. Beim Wiederaufbauen muss dieselbe Drehung gesetzt werden, sonst
+ * stünde der Ballen plötzlich hochkant.
+ */
+function liegendeDrehung(gier: number) {
+  const halbGier = gier / 2;
+  const halbZ = Math.PI / 4; // die Hälfte von PI/2
+  // Quaternion für Y-Drehung mal Quaternion für Z-Drehung
+  const y = { x: 0, y: Math.sin(halbGier), z: 0, w: Math.cos(halbGier) };
+  const z = { x: 0, y: 0, z: Math.sin(halbZ), w: Math.cos(halbZ) };
+  return {
+    x: y.w * z.x + y.x * z.w + y.y * z.z - y.z * z.y,
+    y: y.w * z.y - y.x * z.z + y.y * z.w + y.z * z.x,
+    z: y.w * z.z + y.x * z.y - y.y * z.x + y.z * z.w,
+    w: y.w * z.w - y.x * z.x - y.y * z.y - y.z * z.z,
+  };
+}
+
 interface HeuballenProps {
   terrain: Terraindaten;
   strecke: Streckendaten;
@@ -180,11 +211,63 @@ export function Heuballen({ terrain, strecke }: HeuballenProps) {
   const textur = useMemo(() => macheStrohTextur(), []);
   const ballen = useMemo(() => planeHaufen(terrain, strecke), [terrain, strecke]);
 
+  /** Die Physikkörper aller Ballen, in derselben Reihenfolge wie `ballen`. */
+  const koerper = useRef<(RapierRigidBody | null)[]>([]);
+  /** Wie lange jeder Ballen schon verschoben und in Ruhe liegt (Sekunden). */
+  const ruhezeit = useRef<number[]>([]);
+
+  /**
+   * Stellt umgefahrene Ballen nach einer Weile wieder auf.
+   *
+   * Die Uhr läuft erst, wenn der Ballen zur Ruhe gekommen ist. Sonst würde ein
+   * Ballen, den man gerade vor sich herschiebt, mitten in der Bewegung
+   * zurückspringen.
+   */
+  useFrame((_, delta) => {
+    const dt = Math.min(delta, 0.5);
+    for (let i = 0; i < ballen.length; i++) {
+      const rb = koerper.current[i];
+      if (!rb) continue;
+
+      const soll = ballen[i];
+      const ist = rb.translation();
+      const versatz = Math.hypot(ist.x - soll.x, ist.y - soll.y, ist.z - soll.z);
+
+      if (versatz < HAUFEN.gestoertAb) {
+        ruhezeit.current[i] = 0;
+        continue;
+      }
+
+      // Bewegt er sich noch? Dann Uhr zurücksetzen.
+      const v = rb.linvel();
+      const w = rb.angvel();
+      const inBewegung =
+        Math.hypot(v.x, v.y, v.z) > 0.35 || Math.hypot(w.x, w.y, w.z) > 0.5;
+      if (inBewegung) {
+        ruhezeit.current[i] = 0;
+        continue;
+      }
+
+      ruhezeit.current[i] = (ruhezeit.current[i] ?? 0) + dt;
+      if (ruhezeit.current[i] >= HAUFEN.aufbauNach) {
+        // Zurück an den ursprünglichen Platz, ruhig und richtig herum
+        rb.setTranslation({ x: soll.x, y: soll.y, z: soll.z }, true);
+        rb.setRotation(liegendeDrehung(soll.gier), true);
+        rb.setLinvel({ x: 0, y: 0, z: 0 }, true);
+        rb.setAngvel({ x: 0, y: 0, z: 0 }, true);
+        ruhezeit.current[i] = 0;
+      }
+    }
+  });
+
   return (
     <>
       {ballen.map((b, i) => (
         <RigidBody
           key={i}
+          ref={(rb) => {
+            koerper.current[i] = rb;
+          }}
           type="dynamic"
           colliders={false}
           position={[b.x, b.y, b.z]}

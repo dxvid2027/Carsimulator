@@ -80,7 +80,7 @@ function welt() {
 type Welt = ReturnType<typeof welt>;
 
 const KEINE_EINGABE: FahrEingabe = {
-  gas: 0, bremse: 0, lenken: 0, handbremse: false, reset: false,
+  gas: 0, bremse: 0, lenken: 0, handbremse: false, reset: false, wenden: false,
 };
 
 /** Führt einen Physikschritt mit der gegebenen Eingabe aus. */
@@ -152,6 +152,48 @@ console.log('\n=== Fahrphysik-Test ===\n');
   }
   console.log('2) Vollbremsung aus 100 km/h');
   console.log(`   ${(w.body.translation().z - start).toFixed(1)} m in ${(frames / 60).toFixed(1)} s\n`);
+}
+
+// --- 2b. Nicken beim Bremsen ---
+{
+  console.log('2b) Nicken beim Bremsen (Vollbremsung aus 120 km/h)');
+  const w = welt();
+  absetzen(w);
+  while (kmh(w) < 120) schritt(w, { gas: 1 });
+
+  /** Nickwinkel in Grad: positiv = Nase taucht ein. */
+  const nicken = () => {
+    const q = w.body.rotation();
+    // Y-Anteil der lokalen Vorwärtsachse -> daraus der Winkel zur Waagerechten
+    const fy = 2 * (q.y * q.z - q.w * q.x);
+    return (Math.asin(Math.max(-1, Math.min(1, -fy))) * 180) / Math.PI;
+  };
+
+  let maxNicken = 0;
+  let minAufrecht = 1;
+  let federVorne = Infinity;
+  /*
+    Einzelne Frames ohne Bodenkontakt sagen nichts – die Federung schwingt
+    kurz aus. Aussagekräftig ist, wie LANGE das Heck in der Luft ist.
+  */
+  let frames = 0;
+  let framesHeckOben = 0;
+  for (let i = 0; i < 60 * 6; i++) {
+    schritt(w, { bremse: 1 });
+    frames++;
+    maxNicken = Math.max(maxNicken, nicken());
+    minAufrecht = Math.min(minAufrecht, aufrecht(w));
+    federVorne = Math.min(federVorne, w.controller.wheelSuspensionLength(0) ?? 0);
+    const hinten =
+      (w.controller.wheelIsInContact(2) ? 1 : 0) + (w.controller.wheelIsInContact(3) ? 1 : 0);
+    if (hinten === 0) framesHeckOben++;
+    if (kmh(w) < 1) break;
+  }
+  const anteilOben = (framesHeckOben / frames) * 100;
+  console.log(`   max. Nickwinkel: ${maxNicken.toFixed(1)}° ${maxNicken < 6 ? '(unauffällig)' : maxNicken < 12 ? '(deutlich)' : '(KIPPT NACH VORN)'}`);
+  console.log(`   Federweg vorne minimal: ${federVorne.toFixed(3)} m (Ruhe ${FAHRZEUG.federung.ruhelaenge}) ${federVorne < 0.02 ? '- schlägt durch!' : ''}`);
+  console.log(`   Heck in der Luft: ${anteilOben.toFixed(0)} % der Bremszeit ${anteilOben < 6 ? '(nur kurzes Ausfedern)' : '(HECK HEBT AB)'}`);
+  console.log(`   Aufrichtung: ${minAufrecht.toFixed(3)}\n`);
 }
 
 // --- 3. Kurvenstabilität ---

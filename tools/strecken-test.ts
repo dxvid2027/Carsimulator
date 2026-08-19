@@ -10,7 +10,7 @@ import { STRECKE, erzeugeWelt, abstandZurStrecke, bewerteStrecke, streckeInGrenz
 await RAPIER.init();
 
 const terrain = erzeugeTerrain();
-const strecke = erzeugeWelt(terrain);
+const { strecke } = erzeugeWelt(terrain);
 
 console.log('\n=== Strecken-Test ===\n');
 console.log('1) Form');

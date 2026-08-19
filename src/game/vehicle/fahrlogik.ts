@@ -34,6 +34,27 @@ function vorwaertsRichtung(q: { x: number; y: number; z: number; w: number }) {
 }
 
 /**
+ * Berechnet aus einem Quaternion die lokale Querachse (+X) in Weltkoordinaten.
+ * Um diese Achse nickt das Auto beim Bremsen und Beschleunigen.
+ */
+function querRichtung(q: { x: number; y: number; z: number; w: number }) {
+  return {
+    x: 1 - 2 * (q.y * q.y + q.z * q.z),
+    y: 2 * (q.x * q.y + q.w * q.z),
+    z: 2 * (q.x * q.z - q.w * q.y),
+  };
+}
+
+/**
+ * Nickwinkel in Grad. Positiv = die Nase taucht ein.
+ */
+function nickwinkelGrad(q: { x: number; y: number; z: number; w: number }) {
+  // Y-Anteil der lokalen Vorwärtsachse
+  const fy = 2 * (q.y * q.z - q.w * q.x);
+  return (Math.asin(klemme(-fy, -1, 1)) * 180) / Math.PI;
+}
+
+/**
  * Berechnet aus einem Quaternion die lokale Hochachse (+Y) in Weltkoordinaten.
  * Zeigt sie nach unten (y < 0), liegt das Auto auf dem Dach.
  */
@@ -279,6 +300,32 @@ export function fahrschritt(
       },
       true,
     );
+  }
+
+  // ---------------------------------------------------------------
+  // 5c. Nick-Begrenzung
+  // ---------------------------------------------------------------
+  /*
+    Verhindert, dass das Auto beim Bremsen über die Vorderachse abrollt.
+
+    Ohne diese Bremse taucht die Nase bei einer Vollbremsung so tief ein, dass
+    die Hinterräder abheben – bei einem hochgelegten Fahrzeug passiert das
+    schnell. Wir halten mit einem Drehmoment um die Querachse dagegen, aber
+    erst ab einem Winkel, ab dem normales Nicken aufhört und Kippen anfängt.
+  */
+  if (hilfen.nickBegrenzung > 0 && raederAmBoden > 0) {
+    const q = body.rotation();
+    const nick = nickwinkelGrad(q);
+    if (Math.abs(nick) > hilfen.abNickwinkel) {
+      const quer = querRichtung(q);
+      const ueberschuss = (Math.abs(nick) - hilfen.abNickwinkel) / 45;
+      const staerke =
+        -Math.sign(nick) * ueberschuss * hilfen.nickBegrenzung * FAHRZEUG.masse * PHYSIK_DT * 60;
+      body.applyTorqueImpulse(
+        { x: quer.x * staerke, y: quer.y * staerke, z: quer.z * staerke },
+        true,
+      );
+    }
   }
 
   // ---------------------------------------------------------------

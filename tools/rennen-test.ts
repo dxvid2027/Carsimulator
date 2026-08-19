@@ -18,7 +18,7 @@ import {
 
 // localStorage gibt es in Node nicht – die Bestzeit wird dann eben nicht gemerkt
 const terrain = erzeugeTerrain();
-const strecke = erzeugeWelt(terrain);
+const { strecke } = erzeugeWelt(terrain);
 rennenVorbereiten(strecke);
 
 console.log('\n=== Rennen-Test ===\n');

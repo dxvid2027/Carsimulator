@@ -87,6 +87,10 @@ function macheAsphaltTextur() {
 interface RoadProps {
   strecke: Streckendaten;
   terrain: Terraindaten;
+  /** Geschlossener Rundkurs (Ende trifft Anfang) oder offene Straße? */
+  geschlossen?: boolean;
+  /** Breite abweichend vom Rundkurs, z. B. für schmalere Nebenstraßen. */
+  breite?: number;
 }
 
 /**
@@ -101,13 +105,13 @@ interface RoadProps {
  * Höhe an jedem Punkt direkt aus der Heightmap gelesen und um wenige
  * Zentimeter angehoben.
  */
-export function Road({ strecke, terrain }: RoadProps) {
+export function Road({ strecke, terrain, geschlossen = true, breite }: RoadProps) {
   const textur = useMemo(() => macheAsphaltTextur(), []);
 
   const geometrie = useMemo(() => {
     const punkte = strecke.punkte;
     const n = punkte.length;
-    const halb = STRECKE.breite / 2;
+    const halb = (breite ?? STRECKE.breite) / 2;
 
     /*
       Der Kurs ist geschlossen: Nach dem letzten Querschnitt kommt wieder der
@@ -121,7 +125,8 @@ export function Road({ strecke, terrain }: RoadProps) {
       Die 0,5 im Nenner sorgen dafür, dass wir korrekt runden.
     */
     const kacheln = Math.max(1, Math.round(strecke.laenge / TEXTUR_LAENGE));
-    const kachelLaenge = strecke.laenge / kacheln;
+    // Nur beim geschlossenen Kurs muss die Länge glatt aufgehen
+    const kachelLaenge = geschlossen ? strecke.laenge / kacheln : TEXTUR_LAENGE;
 
     // Pro Stützpunkt zwei Eckpunkte (links und rechts). Ring schließen:
     // der letzte Querschnitt wird mit dem ersten verbunden.
@@ -173,9 +178,10 @@ export function Road({ strecke, terrain }: RoadProps) {
       }
     }
 
-    // Dreiecke: je Abschnitt zwei, der letzte schließt den Ring
-    const indizes = new Uint32Array(n * 6);
-    for (let i = 0; i < n; i++) {
+    // Dreiecke: je Abschnitt zwei. Beim Rundkurs schließt der letzte den Ring.
+    const abschnitte = geschlossen ? n : n - 1;
+    const indizes = new Uint32Array(abschnitte * 6);
+    for (let i = 0; i < abschnitte; i++) {
       const a = i * 2;
       const b = i * 2 + 1;
       const naechster = ((i + 1) % n) * 2;
@@ -197,7 +203,7 @@ export function Road({ strecke, terrain }: RoadProps) {
     geo.setIndex(new BufferAttribute(indizes, 1));
     geo.computeBoundingSphere();
     return geo;
-  }, [strecke, terrain]);
+  }, [strecke, terrain, geschlossen, breite]);
 
   return (
     <mesh geometry={geometrie} receiveShadow>
