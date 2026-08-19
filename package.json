@@ -15,7 +15,8 @@
     "rennen": "tsx tools/rennen-test.ts",
     "heu": "tsx tools/heuballen-test.ts",
     "wege": "tsx tools/wege-test.ts",
-    "orte": "tsx tools/orte-test.ts"
+    "orte": "tsx tools/orte-test.ts",
+    "icons": "tsx tools/icons-bauen.ts"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "0.19.2",
@@ -29,6 +30,7 @@
     "three": "^0.185.1"
   },
   "devDependencies": {
+    "@types/node": "^26.2.0",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@types/three": "^0.185.4",

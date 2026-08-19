@@ -106,6 +106,37 @@ Die Node-Version steht in `.node-version` (22), die muss man nicht extra setzen.
 Nach ein bis zwei Minuten gibt es eine Adresse wie `carsimulator.pages.dev`.
 Jeder weitere Push auf den Branch baut die Seite automatisch neu.
 
+## Zum Home-Bildschirm hinzufügen (iPhone, iPad)
+
+Das Spiel lässt sich wie eine App aufs iPhone legen – mit eigenem Symbol und
+ohne Browserleiste.
+
+1. Die Seite in **Safari** öffnen (Chrome auf dem iPhone kann das nicht)
+2. Unten auf das **Teilen-Symbol** (Quadrat mit Pfeil nach oben)
+3. **Zum Home-Bildschirm** → **Hinzufügen**
+
+Auf dem Home-Bildschirm steht dann „Carsimulator“ mit dem lila Auto als
+Symbol. Beim Antippen startet es im Vollbild.
+
+Damit das funktioniert, braucht die Seite drei Dinge, die alle im Projekt
+liegen:
+
+| Was | Datei | Wozu |
+|---|---|---|
+| Symbol als PNG | `public/apple-touch-icon.png` | iOS ignoriert SVG-Symbole und zeigt sonst einen Ausschnitt der Seite als Kachel |
+| Vollbild-Schalter | `apple-mobile-web-app-capable` in `index.html` | ohne ihn öffnet sich das Spiel mit Browserleiste |
+| Manifest | `public/manifest.webmanifest` | Name, Symbole und Ausrichtung – für Android und Chrome |
+
+Die Vorlage für alle Symbole ist `public/icon.svg`, dieselbe Zeichnung wie das
+Logo auf dem Startbildschirm. Nach einer Änderung daran:
+
+```bash
+npm run icons
+```
+
+Das rendert die PNGs (180, 192, 512 px) mit Chromium neu – so sieht das Symbol
+garantiert genauso aus wie das Logo im Spiel.
+
 ## Was dieser Prototyp kann
 
 - **Höhergelegte Limousine** auf Grobstollenreifen, mit Dachträger und
@@ -212,6 +243,12 @@ src/
       Logo.tsx              Spiel-Logo als SVG
 public/
   venice_sunset_1k.hdr      HDRI fürs Umgebungslicht (CC0)
+  icon.svg                  Vorlage für alle App-Symbole
+  apple-touch-icon.png      Symbol für den iPhone-Home-Bildschirm (180 px)
+  icon-192.png              Symbol für Android/Chrome
+  icon-512.png              Symbol für Android/Chrome
+  icon-maskable-512.png     Symbol, das Android beliebig zuschneiden darf
+  manifest.webmanifest      Name, Symbole, Ausrichtung
   ASSETS.md                 Herkunft und Lizenz der Assets
 tools/
   fahrphysik-test.ts        Headless-Test der Fahrphysik
@@ -222,6 +259,7 @@ tools/
   heuballen-test.ts         Headless-Test der Heuballen
   wege-test.ts              Prüft, ob alle Wege frei befahrbar sind
   orte-test.ts              Prüft die Bauplätze der Sehenswürdigkeiten
+  icons-bauen.ts            Erzeugt die PNG-Symbole aus public/icon.svg
 ```
 
 ## Testen ohne Browser
@@ -426,6 +464,7 @@ Seitdem merkt sich `orte.ts` jeden Ort pro Welt und sucht ihn nur einmal.
 npm run build      # Produktions-Build
 npm run preview    # Produktions-Build lokal ansehen
 npm run typecheck  # TypeScript prüfen
+npm run icons      # App-Symbole aus public/icon.svg neu erzeugen
 ```
 
 ## Nächste Schritte

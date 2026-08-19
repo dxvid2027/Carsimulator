@@ -4,14 +4,28 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <!--
-      Symbol im Browser-Tab: dasselbe Motiv wie das Logo im Spiel, nur
-      vereinfacht. Als Data-URI eingebettet, damit keine zusätzliche Datei
-      geladen werden muss.
+      Das App-Symbol.
+
+      `icon.svg` ist die Vorlage (siehe public/icon.svg), die PNGs entstehen
+      daraus mit `npm run icons`.
+
+      iOS braucht zwingend das PNG unter `apple-touch-icon`: Beim "Zum
+      Home-Bildschirm hinzufuegen" ignoriert es SVG-Symbole und zeigt sonst
+      einen Ausschnitt der Seite als Kachel.
     -->
-    <link
-      rel="icon"
-      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'%3E%3Crect width='120' height='120' rx='27' fill='%2318a5b4'/%3E%3Cpath d='M27 74q0-15 14-20l10-9q4-4 11-4h22q9 0 15 7l10 12q9 2 9 10v8q0 6-7 6H33q-6 0-6-6z' fill='%238f3fd6'/%3E%3Cpath d='M52 45q4-4 11-4h14q6 1 9 6l5 7H47z' fill='%2316202b'/%3E%3Cellipse cx='63' cy='55' rx='10' ry='11' fill='%23fff'/%3E%3Cellipse cx='92' cy='49' rx='9' ry='10' fill='%23fff'/%3E%3Ccircle cx='65' cy='56' r='4.6' fill='%23101418'/%3E%3Ccircle cx='94' cy='50' r='4.2' fill='%23101418'/%3E%3Ccircle cx='43' cy='87' r='14' fill='%2315181c'/%3E%3Ccircle cx='43' cy='87' r='7.5' fill='%232fd3d8'/%3E%3Ccircle cx='88' cy='90' r='11' fill='%2315181c'/%3E%3Ccircle cx='88' cy='90' r='5.6' fill='%232fd3d8'/%3E%3C/svg%3E"
-    />
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+
+    <!--
+      Vom Home-Bildschirm gestartet laeuft das Spiel ohne Browserleiste –
+      also im Vollbild, so wie eine echte App.
+    -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+    <meta name="apple-mobile-web-app-title" content="Carsimulator" />
+
     <title>Carsimulator</title>
     <meta name="theme-color" content="#0b0e13" />
   </head>
