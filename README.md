@@ -71,6 +71,7 @@ Seite automatisch neu.
 - **Raycast-Vehicle über Rapier** – kein Arcade-Würfel, sondern vier Räder mit
   echter Federung, Grip und Radlastverteilung.
 - **Drift** – zu viel Gas löst das Heck, die Handbremse blockiert die Hinterräder.
+  Eine Gegenlenk-Hilfe macht Drifts auch mit der Tastatur abfangbar.
 - **Weiche Verfolgerkamera** mit Nachlauf und tempoabhängigem Sichtfeld.
 - **HUD** mit Tacho, Gang, Drehzahlbalken und Drift-Anzeige.
 
@@ -106,6 +107,7 @@ src/
       TouchControls.tsx     Bedienelemente für iPad und Handy
 tools/
   fahrphysik-test.ts        Headless-Test der Fahrphysik
+  lenkung-test.ts           Headless-Test des Lenkverhaltens
   terrain-test.ts           Headless-Test des Terrains
 ```
 
@@ -129,8 +131,41 @@ Aktuelle Messwerte:
 | Topspeed | 192 km/h |
 | Bremsweg 100–0 km/h | 17,9 m |
 | Dauerkurve 80 km/h | stabil, kippt nicht |
-| Handbremsen-Drift | bis 63°, fängt sich wieder |
+| Handbremsen-Drift | bis 43°, fängt sich wieder |
 | Luftlage nach Sprung | richtet sich auf, landet auf den Rädern |
+
+## Lenkung testen
+
+```bash
+npm run lenkung
+```
+
+Misst Ansprechzeit, Rückstellung, Überschwingen, Spurwechsel und wie gut sich
+ein Drift abfangen lässt.
+
+| Messung | Wert |
+|---|---|
+| Einschlag im Stand / bei 180 km/h | 31,5° / 17,5° |
+| Ansprechzeit im Stand | 0,23 s |
+| Rückstellung in die Mitte | 0,13 s |
+| Überschwingen bei 60/120/180 km/h | 1 % / 2 % / 2 % |
+| kleine Lenkbewegung bei 180 km/h | 25,9 °/s Drehrate (ruhig) |
+| Drift abfangen | 1,4 s |
+
+Die Lenkung ist bewusst asymmetrisch: **Einlenken geht langsamer als
+Zurückstellen.** Beim Einlenken dosiert man, beim Zurückstellen will man sofort
+wieder geradeaus - das ist der größte Unterschied zwischen "schwammig" und
+"direkt". Zusätzlich werden bei hohem Tempo sowohl der Einschlag als auch die
+Einlenkgeschwindigkeit reduziert.
+
+Bricht das Heck aus, lenkt das Spiel automatisch ein Stück mit
+(`lenkung.gegenlenkHilfe`). Mit der Tastatur gibt es nur "ganz links" oder
+"ganz rechts" - fein dosiertes Gegenlenken wäre damit unmöglich.
+
+**Wichtig fürs Fahrgefühl ist auch die Grip-Verteilung**, nicht nur die Lenkung
+selbst: Hat die Hinterachse weniger Halt als die Vorderachse, dreht sich das
+Auto bei Tempo schon bei leichtem Einlenken weg. Deshalb hat die Hinterachse
+hier mehr Halt (`grip.hinten > grip.vorne`), wie bei jedem Serienauto.
 
 ## Terrain testen
 

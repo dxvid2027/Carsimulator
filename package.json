@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "physik": "tsx tools/fahrphysik-test.ts",
     "terrain": "tsx tools/terrain-test.ts",
-    "strecke": "tsx tools/strecken-test.ts"
+    "strecke": "tsx tools/strecken-test.ts",
+    "lenkung": "tsx tools/lenkung-test.ts"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "0.19.2",

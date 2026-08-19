@@ -63,10 +63,22 @@ export const FAHRZEUG = {
 
   // ---------- Reifengrip ----------
   grip: {
-    /** Längsgrip vorne (Beschleunigen/Bremsen). */
-    vorne: 2.6,
-    /** Längsgrip hinten. Etwas niedriger als vorne = gutmütiges Übersteuern. */
-    hinten: 2.3,
+    /**
+     * Grip vorne und hinten.
+     *
+     * Entscheidend ist das VERHÄLTNIS, nicht der Absolutwert:
+     * Hat die Hinterachse WENIGER Halt als die Vorderachse, bricht bei Tempo
+     * das Heck aus, sobald man nur leicht einlenkt – das Auto dreht sich weg,
+     * statt der Kurve zu folgen. Bei 180 km/h reichten dafür 4° Einschlag.
+     *
+     * Deshalb hat die Hinterachse hier mehr Halt (untersteuernde Auslegung,
+     * wie bei jedem Serienauto). Gemessen: aus 86°/s Drehrate bei leichtem
+     * Einlenken wurden 26°/s, aus 81 % Überschwingen wurden 2 %.
+     *
+     * Zum Driften wird der Hinterrad-Grip gezielt abgesenkt – siehe `drift`.
+     */
+    vorne: 2.4,
+    hinten: 2.8,
     /** Seitenführungskraft. 1 = voller Seitenhalt, 0 = das Rad rutscht seitlich weg. */
     seite: 1.0,
     /**
@@ -101,18 +113,54 @@ export const FAHRZEUG = {
 
   // ---------- Lenkung ----------
   lenkung: {
-    /** Maximaler Radeinschlag in Radiant (0,55 rad ≈ 31°). */
+    /** Maximaler Radeinschlag in Radiant (0,55 rad ≈ 31°). Gilt im Stand. */
     maxEinschlag: 0.55,
     /**
      * Wie stark der Einschlag bei Höchstgeschwindigkeit reduziert wird (0–1).
-     * 0,62 heißt: bei Topspeed sind nur noch 38 % Einschlag möglich.
-     * Ohne das wäre das Auto bei 190 km/h unfahrbar nervös.
+     * 0,8 heißt: bei Topspeed sind nur noch 20 % Einschlag möglich.
+     *
+     * Warum so viel? Bei 180 km/h reicht schon wenig Lenkeinschlag, um mehr
+     * Seitenkraft zu verlangen, als die Reifen hergeben. Das Auto dreht sich
+     * dann weg, statt der Kurve zu folgen.
      */
-    tempoDaempfung: 0.62,
+    tempoDaempfung: 0.8,
+    /**
+     * Krümmung der Tempo-Kurve.
+     * 1 wäre linear – dann fehlt schon bei Stadttempo spürbar Einschlag.
+     * Werte über 1 lassen den Einschlag bei langsamer Fahrt fast voll und
+     * nehmen ihn erst bei hohem Tempo deutlich zurück.
+     */
+    tempoKurve: 1.4,
     /** Wie schnell der Einschlag dem Tastendruck folgt (höher = direkter). */
-    einschlagTempo: 7,
+    einschlagTempo: 9,
+    /**
+     * Wie stark das Einlenken bei hohem Tempo verlangsamt wird (0–1).
+     * Bei Tempo reißt man das Lenkrad nicht herum – ohne das lässt sich das
+     * Auto auf der Geraden mit einem Tastendruck aus der Bahn werfen.
+     */
+    tempoRatenDaempfung: 0.45,
+    /**
+     * Wie schnell die Räder in die Mitte zurückgehen.
+     * Bewusst deutlich schneller als das Einlenken: Beim Einlenken dosiert man,
+     * beim Zurückstellen will man sofort wieder geradeaus. Das ist der größte
+     * Unterschied zwischen "schwammig" und "direkt".
+     */
+    rueckstellTempo: 16,
     /** Lenkeinschlag-Faktor während die Handbremse gezogen ist. */
     handbremsFaktor: 0.85,
+
+    // ----- Gegenlenk-Hilfe -----
+    /**
+     * Wenn das Heck ausbricht, lenkt das Spiel automatisch ein Stück mit.
+     * Ohne diese Hilfe muss man in Sekundenbruchteilen exakt gegenlenken –
+     * mit Tastatur (nur ganz oder gar nicht) ist das kaum zu schaffen.
+     * 0 schaltet die Hilfe ab.
+     */
+    gegenlenkHilfe: 0.55,
+    /** Ab diesem Schräglaufwinkel (Grad) greift die Hilfe. */
+    gegenlenkAb: 8,
+    /** Obergrenze der Hilfe in Radiant, damit sie nie selbst lenkt. */
+    gegenlenkMax: 0.3,
   },
 
   // ---------- Drift ----------
@@ -121,10 +169,15 @@ export const FAHRZEUG = {
     gripVollgas: 1.5,
     /** Seitenführung hinten bei Vollgas. */
     seiteVollgas: 0.55,
-    /** Hinterrad-Grip bei gezogener Handbremse. */
-    gripHandbremse: 0.9,
+    /**
+     * Hinterrad-Grip bei gezogener Handbremse.
+     * Diese Werte hängen an `grip.hinten`: Wird die Hinterachse dort
+     * griffiger gemacht, muss die Handbremse stärker absenken, damit der
+     * Drift gleich bleibt. Gemessen: 49° Drift, in 1,4 s wieder abgefangen.
+     */
+    gripHandbremse: 0.55,
     /** Seitenführung hinten bei gezogener Handbremse. */
-    seiteHandbremse: 0.7,
+    seiteHandbremse: 0.45,
   },
 
   // ---------- Fahrhilfen & Aerodynamik ----------
@@ -143,10 +196,20 @@ export const FAHRZEUG = {
      * Ohne das dreht sich das Auto beim Handbremsen endlos im Kreis.
      */
     stabilisierung: 0.45,
-    /** Ab diesem Schräglaufwinkel (Grad) greift die Hilfe. */
-    abSchraeglauf: 20,
+    /**
+     * Ab diesem Schräglaufwinkel (Grad) greift die Hilfe.
+     * Früher (12° statt 20°) einzugreifen halbiert die Zeit, die man zum
+     * Abfangen eines Drifts braucht – der Drift selbst bleibt erhalten.
+     */
+    abSchraeglauf: 12,
     /** Faktor der Hilfe während der Handbremse (>1 = stärker, damit kein Endlos-Spin). */
     handbremsFaktor: 1.3,
+    /**
+     * Wie stark die Stabilisierung mit dem Tempo zunimmt.
+     * Bei 190 km/h wirkt sie damit gut doppelt so stark wie im Stand – genau
+     * dort, wo ein Ausbrecher sonst nicht mehr einzufangen ist.
+     */
+    tempoVerstaerkung: 1.4,
     /** Dämpfung der Drehbewegung durch Rapier selbst. */
     winkelDaempfung: 0.6,
     /**

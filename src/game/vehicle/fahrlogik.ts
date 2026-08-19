@@ -46,17 +46,24 @@ function hochRichtung(q: { x: number; y: number; z: number; w: number }) {
 }
 
 /**
- * Schräglaufwinkel in Grad: der Winkel zwischen der Blickrichtung des Autos
- * und der Richtung, in die es sich tatsächlich bewegt.
- * 0° = fährt geradeaus wohin es schaut, 45° = deutlicher Drift.
+ * Schräglaufwinkel in Grad, MIT Vorzeichen.
+ *
+ * Der Winkel zwischen der Blickrichtung des Autos und der Richtung, in die es
+ * sich tatsächlich bewegt. 0° = fährt geradeaus wohin es schaut,
+ * 45° = deutlicher Drift.
+ *
+ * Das Vorzeichen sagt, zu welcher Seite es rutscht – das braucht die
+ * Gegenlenk-Hilfe. Ohne Vorzeichen wüsste sie nicht, wohin sie lenken soll.
  */
-function schraeglaufGrad(body: RapierRigidBody) {
+function schraeglaufMitVorzeichen(body: RapierRigidBody) {
   const v = body.linvel();
   const tempo = Math.hypot(v.x, v.z);
   if (tempo < 2) return 0; // im Stand ist der Winkel bedeutungslos
   const f = vorwaertsRichtung(body.rotation());
-  const punkt = (f.x * v.x + f.z * v.z) / tempo;
-  return (Math.acos(klemme(punkt, -1, 1)) * 180) / Math.PI;
+  // Kreuzprodukt der beiden Richtungen in der XZ-Ebene (nur der Betrag zählt)
+  const kreuz = f.x * v.z - f.z * v.x;
+  const punkt = f.x * v.x + f.z * v.z;
+  return (Math.atan2(kreuz, punkt) * 180) / Math.PI;
 }
 
 /**
@@ -85,14 +92,70 @@ export function fahrschritt(
   // ---------------------------------------------------------------
   // 1. Lenkung
   // ---------------------------------------------------------------
-  // Bei hohem Tempo weniger Einschlag zulassen, sonst ist das Auto nicht fahrbar.
-  const tempoFaktor = 1 - Math.min(1, tempoAbs / antrieb.maxGeschwindigkeit) * lenkung.tempoDaempfung;
-  const handbremsLimit = eingabe.handbremse ? lenkung.handbremsFaktor : 1;
-  const zielEinschlag = eingabe.lenken * lenkung.maxEinschlag * tempoFaktor * handbremsLimit;
+  /*
+    a) Wie viel Einschlag ist bei diesem Tempo überhaupt erlaubt?
 
-  // Weich nachführen statt hart setzen -> das Lenkrad "dreht sich" statt zu springen
+    Die Reduktion folgt einer Kurve statt einer Geraden: bei Schrittgeschwindig-
+    keit bleibt fast der volle Einschlag (man will rangieren können), bei hohem
+    Tempo wird kräftig zurückgenommen. Ohne das verlangt schon ein kurzer
+    Tastendruck bei 180 km/h mehr Seitenkraft, als die Reifen liefern können –
+    das Auto dreht sich dann weg, statt der Kurve zu folgen.
+  */
+  const tempoAnteil = Math.min(1, tempoAbs / antrieb.maxGeschwindigkeit);
+  const tempoFaktor = 1 - lenkung.tempoDaempfung * Math.pow(tempoAnteil, lenkung.tempoKurve);
+  const handbremsLimit = eingabe.handbremse ? lenkung.handbremsFaktor : 1;
+  const maxHier = lenkung.maxEinschlag * tempoFaktor * handbremsLimit;
+
+  /*
+    b) Gegenlenk-Hilfe.
+
+    Bricht das Heck aus, lenkt das Spiel automatisch ein Stück in die
+    Rutschrichtung. Mit der Tastatur gibt es nur "ganz links" oder "ganz
+    rechts" – fein dosiertes Gegenlenken ist damit unmöglich. Die Hilfe
+    übernimmt den feinen Anteil, der Spieler den groben.
+
+    `schraeglauf` ist negativ, wenn das Auto nach links rutscht. Positives
+    Lenken bedeutet ebenfalls links, deshalb das Minuszeichen.
+  */
+  const schraeglaufSigniert = schraeglaufMitVorzeichen(body);
+  const schraeglauf = Math.abs(schraeglaufSigniert);
+  let gegenlenkung = 0;
+  if (lenkung.gegenlenkHilfe > 0 && schraeglauf > lenkung.gegenlenkAb && tempoAbs > 4) {
+    const ueberschuss = ((schraeglauf - lenkung.gegenlenkAb) * Math.PI) / 180;
+    gegenlenkung = klemme(
+      -Math.sign(schraeglaufSigniert) * ueberschuss * lenkung.gegenlenkHilfe,
+      -lenkung.gegenlenkMax,
+      lenkung.gegenlenkMax,
+    );
+  }
+
+  const zielEinschlag = klemme(
+    eingabe.lenken * maxHier + gegenlenkung,
+    -lenkung.maxEinschlag,
+    lenkung.maxEinschlag,
+  );
+
+  /*
+    c) Weich nachführen – aber mit zwei verschiedenen Geschwindigkeiten.
+
+    Einlenken geht bewusst langsamer als Zurückstellen. Beim Einlenken dosiert
+    man, beim Zurückstellen will man sofort wieder geradeaus. Genau das ist der
+    Unterschied zwischen "schwammig" und "direkt".
+
+    Zusätzlich wird das Einlenken bei hohem Tempo verlangsamt: Bei Tempo reißt
+    niemand das Lenkrad herum, und ohne diese Bremse lässt sich das Auto auf
+    der Geraden mit einem Tastendruck aus der Bahn werfen.
+  */
+  const zurueck =
+    Math.abs(zielEinschlag) < Math.abs(zustand.lenkeinschlag) ||
+    Math.sign(zielEinschlag) !== Math.sign(zustand.lenkeinschlag);
+
+  const tempo_ = zurueck
+    ? lenkung.rueckstellTempo
+    : lenkung.einschlagTempo * (1 - lenkung.tempoRatenDaempfung * tempoAnteil);
+
   zustand.lenkeinschlag +=
-    (zielEinschlag - zustand.lenkeinschlag) * Math.min(1, PHYSIK_DT * lenkung.einschlagTempo);
+    (zielEinschlag - zustand.lenkeinschlag) * Math.min(1, PHYSIK_DT * tempo_);
   for (const i of VORDERRAEDER) controller.setWheelSteering(i, zustand.lenkeinschlag);
 
   // ---------------------------------------------------------------
@@ -209,11 +272,16 @@ export function fahrschritt(
   // Ohne diese Hilfe dreht sich das Auto beim Handbremsen endlos im Kreis.
   // Sie bremst nur die Drehung, wenn der Schräglaufwinkel wirklich groß wird –
   // kleine, kontrollierte Drifts bleiben also erhalten.
-  const schraeglauf = schraeglaufGrad(body);
   if (schraeglauf > hilfen.abSchraeglauf) {
-    const staerke = eingabe.handbremse
-      ? hilfen.stabilisierung * hilfen.handbremsFaktor
-      : hilfen.stabilisierung;
+    /*
+      Mit dem Tempo verstärken: Bei 190 km/h ist ein Ausbrecher sonst nicht
+      mehr einzufangen, bei Schrittgeschwindigkeit stört die Hilfe dagegen nur.
+    */
+    const tempoBonus = 1 + tempoAnteil * hilfen.tempoVerstaerkung;
+    const staerke =
+      (eingabe.handbremse
+        ? hilfen.stabilisierung * hilfen.handbremsFaktor
+        : hilfen.stabilisierung) * tempoBonus;
     const w = body.angvel();
     const anteil = Math.min(1, (schraeglauf - hilfen.abSchraeglauf) / 90);
     body.applyTorqueImpulse({ x: 0, y: -w.y * staerke * anteil * FAHRZEUG.masse, z: 0 }, true);
