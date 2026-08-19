@@ -2,7 +2,8 @@ import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { CylinderCollider, RigidBody, type RapierRigidBody } from '@react-three/rapier';
 import { CanvasTexture, RepeatWrapping, SRGBColorSpace } from 'three';
-import { STRECKE, abstandZurStrecke, type Streckendaten } from './strecke';
+import { STRECKE, type Streckendaten } from './strecke';
+import type { Strassennetz } from './strassennetz';
 import { hoeheBei, steigungBei, type Terraindaten } from './heightmap';
 
 /**
@@ -35,8 +36,13 @@ export const HAUFEN = {
    * man kommt hindurch.
    */
   masse: 170,
-  /** Abstand der Haufen von der Fahrbahnmitte. */
-  abstandStrasse: STRECKE.breite / 2 + 2.6,
+  /**
+   * Abstand der Haufen von der Fahrbahnmitte.
+   *
+   * Muss hinter dem Bankett liegen. Steht ein Haufen im Bankett, gilt er für
+   * das Straßennetz als "auf der Fahrbahn" und wird gar nicht erst gesetzt.
+   */
+  abstandStrasse: STRECKE.breite / 2 + STRECKE.bankett + 3,
   /** Zufallskeim, damit die Haufen immer gleich liegen. */
   keim: 8123,
   /**
@@ -105,7 +111,11 @@ export interface Ballen {
   groesse: number;
 }
 
-export function planeHaufen(terrain: Terraindaten, strecke: Streckendaten): Ballen[] {
+export function planeHaufen(
+  terrain: Terraindaten,
+  strecke: Streckendaten,
+  netz: Strassennetz,
+): Ballen[] {
   const rnd = zufall(HAUFEN.keim);
   const ballen: Ballen[] = [];
   const schritt = strecke.punkte.length / HAUFEN.anzahl;
@@ -124,8 +134,12 @@ export function planeHaufen(terrain: Terraindaten, strecke: Streckendaten): Ball
 
     // Auf einem Hang würde der Stapel sofort wegrollen
     if (steigungBei(terrain, basisX, basisZ) > 0.2) continue;
-    // Nicht direkt in die Startzone bauen
-    if (abstandZurStrecke(strecke, basisX, basisZ).distanz < STRECKE.breite / 2 + 1) continue;
+    /*
+      Auf keiner Fahrbahn liegen – auch nicht auf einer Nebenstraße oder Piste.
+      Der Schwellwert ist der Ballenradius plus etwas Luft: So liegt der ganze
+      Ballen außerhalb der Fahrbahn, nicht nur sein Mittelpunkt.
+    */
+    if (netz.randabstand(basisX, basisZ) < HAUFEN.radius + 0.6) continue;
 
     const proReihe =
       HAUFEN.proReiheMin +
@@ -205,11 +219,13 @@ function liegendeDrehung(gier: number) {
 interface HeuballenProps {
   terrain: Terraindaten;
   strecke: Streckendaten;
+  /** Kennt alle Fahrwege – hält die Haufen von jeder Fahrbahn fern. */
+  netz: Strassennetz;
 }
 
-export function Heuballen({ terrain, strecke }: HeuballenProps) {
+export function Heuballen({ terrain, strecke, netz }: HeuballenProps) {
   const textur = useMemo(() => macheStrohTextur(), []);
-  const ballen = useMemo(() => planeHaufen(terrain, strecke), [terrain, strecke]);
+  const ballen = useMemo(() => planeHaufen(terrain, strecke, netz), [terrain, strecke, netz]);
 
   /** Die Physikkörper aller Ballen, in derselben Reihenfolge wie `ballen`. */
   const koerper = useRef<(RapierRigidBody | null)[]>([]);

@@ -167,6 +167,7 @@ src/
       CarModel.tsx          Karosserie aus einfachen Formen
     world/
       heightmap.ts          Prozedurale Höhendaten + Höhenabfrage
+      strassennetz.ts       Kennt alle Fahrwege, hält sie frei
       Heuballen.tsx         Bewegliche Heuballen in Haufen
       Offroad.tsx           Schotterpisten, Sprungrampen, Felsenfeld
       Deko.tsx              Felsen, Büsche, Dorf, Windmühle
@@ -201,6 +202,7 @@ tools/
   strecken-test.ts          Headless-Test des Rundkurses
   rennen-test.ts            Headless-Test der Rennlogik
   heuballen-test.ts         Headless-Test der Heuballen
+  wege-test.ts              Prüft, ob alle Wege frei befahrbar sind
 ```
 
 ## Testen ohne Browser
@@ -295,6 +297,27 @@ Kommt sich der Kurs zu nahe, überlagern sich beim Einschneiden zwei
 verschiedene Fahrbahnhöhen und die Straße bekommt eine Stufe. Deshalb probiert
 die Streckenerzeugung automatisch mehrere Zufallskeime durch, bis einer die
 Vorgaben in `STRECKE` erfüllt.
+
+### Wege
+
+```bash
+npm run wege
+```
+
+Prüft, ob Bäume, Felsen, Büsche und Heuballen von **allen** Fahrwegen
+freibleiben – nicht nur vom Rundkurs. Genau das ging vorher schief: Die
+Platzierung kannte nur den Rundkurs, deshalb wuchsen Büsche mitten auf den
+Nebenstraßen und Leitplanken standen quer über den Einmündungen.
+
+Alle Objekte fragen jetzt `src/game/world/strassennetz.ts`, das Rundkurs,
+Nebenstraßen und Geländepisten zusammen kennt. Damit das bei zehntausenden
+Abfragen schnell bleibt, liegen die Wegpunkte in einem Raster.
+
+| Messung | Wert |
+|---|---|
+| Bäume / Felsen / Büsche / Heuballen | 620 / 260 / 420 / 88, keiner auf einer Fahrbahn |
+| Wege | Rundkurs, 2 Nebenstraßen, 3 Geländepisten |
+| steilste Stelle | 12° Straße, bis 28° Piste |
 
 ### Heuballen
 

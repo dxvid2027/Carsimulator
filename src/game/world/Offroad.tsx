@@ -13,6 +13,7 @@ import {
 } from 'three';
 import { WELT, hoeheBei, steigungBei, type Terraindaten } from './heightmap';
 import { abstandZurStrecke, type Streckendaten } from './strecke';
+import type { Strassennetz } from './strassennetz';
 
 /**
  * Alles fürs Gelände: Schotterpisten, Sprungrampen und ein Felsenfeld.
@@ -225,9 +226,11 @@ function bauePistenGeometrie(terrain: Terraindaten, punkte: Pistenpunkt[]) {
 interface OffroadProps {
   terrain: Terraindaten;
   strecke: Streckendaten;
+  /** Kennt alle Fahrwege – hält die Felsblöcke von den Fahrbahnen fern. */
+  netz: Strassennetz;
 }
 
-export function Offroad({ terrain, strecke }: OffroadProps) {
+export function Offroad({ terrain, strecke, netz }: OffroadProps) {
   const schotter = useMemo(() => macheSchotterTextur(), []);
 
   /** Drei Pisten, die kreuz und quer durchs Gelände führen. */
@@ -285,6 +288,7 @@ export function Offroad({ terrain, strecke }: OffroadProps) {
       const z = (rnd() - 0.5) * (WELT.groesse - 240);
       const d = abstandZurStrecke(strecke, x, z).distanz;
       if (d < 70) continue;
+      if (netz.randabstand(x, z) < 55) continue;
       const punktzahl = steigungBei(terrain, x, z) * 2 + d / 400;
       if (punktzahl > beste) {
         beste = punktzahl;
@@ -299,11 +303,15 @@ export function Offroad({ terrain, strecke }: OffroadProps) {
       groesse: number;
       neigung: number;
     }[] = [];
-    for (let i = 0; i < OFFROAD.felsbloecke; i++) {
+    let versuche = 0;
+    while (bloecke.length < OFFROAD.felsbloecke && versuche < OFFROAD.felsbloecke * 20) {
+      versuche++;
       const winkel = rnd() * Math.PI * 2;
       const radius = Math.sqrt(rnd()) * 42;
       const x = mitte.x + Math.cos(winkel) * radius;
       const z = mitte.z + Math.sin(winkel) * radius;
+      // Einzelne Blöcke dürfen trotzdem nicht auf einer Piste landen
+      if (netz.randabstand(x, z) < 5) continue;
       const groesse = 1.3 + rnd() * 2.6;
       bloecke.push({
         x,
@@ -315,7 +323,7 @@ export function Offroad({ terrain, strecke }: OffroadProps) {
       });
     }
     return { mitte, bloecke };
-  }, [terrain, strecke]);
+  }, [terrain, strecke, netz]);
 
   const felsMatrizen = useMemo(() => {
     const q = new Quaternion();

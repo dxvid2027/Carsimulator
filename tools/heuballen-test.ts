@@ -12,6 +12,7 @@ import RAPIER from '@dimforge/rapier3d-compat';
 import { WELT, erzeugeTerrain, hoeheBei } from '../src/game/world/heightmap';
 import { STRECKE, abstandZurStrecke, erzeugeWelt } from '../src/game/world/strecke';
 import { HAUFEN, planeHaufen } from '../src/game/world/Heuballen';
+import { baueStrassennetz } from '../src/game/world/strassennetz';
 import { FAHRZEUG, PHYSIK_DT, RAD_POSITIONEN, VORDERRAEDER } from '../src/game/config/vehicleConfig';
 import { fahrschritt, neuerFahrZustand } from '../src/game/vehicle/fahrlogik';
 import type { FahrEingabe } from '../src/game/input/useDrivingInput';
@@ -20,7 +21,10 @@ await RAPIER.init();
 
 const terrain = erzeugeTerrain();
 const { strecke } = erzeugeWelt(terrain);
-const ballen = planeHaufen(terrain, strecke);
+const netz = baueStrassennetz([
+  { punkte: strecke.punkte, breite: STRECKE.breite + STRECKE.bankett * 2 },
+]);
+const ballen = planeHaufen(terrain, strecke, netz);
 
 console.log('\n=== Heuballen-Test ===\n');
 console.log('1) Platzierung');

@@ -10,6 +10,7 @@ import { RaceHud } from './game/ui/RaceHud';
 import { Minimap } from './game/ui/Minimap';
 import type { Streckendaten } from './game/world/strecke';
 import type { Terraindaten } from './game/world/heightmap';
+import type { Strassennetz } from './game/world/strassennetz';
 import { rennen, rennenBeenden, rennenStarten } from './game/race/rennen';
 import { touchEingabe } from './game/input/touchInput';
 import {
@@ -42,6 +43,7 @@ export default function App() {
     terrain: Terraindaten;
     strecke: Streckendaten;
     nebenstrassen: Streckendaten[];
+    netz: Strassennetz;
   } | null>(null);
   /** Ist die große Karte geöffnet? */
   const [karteOffen, setKarteOffen] = useState(false);
@@ -170,6 +172,7 @@ export default function App() {
           strecke={welt.strecke}
           nebenstrassen={welt.nebenstrassen}
           terrain={welt.terrain}
+          netz={welt.netz}
           gross={karteOffen}
           onSchliessen={() => setKarteOffen(false)}
         />

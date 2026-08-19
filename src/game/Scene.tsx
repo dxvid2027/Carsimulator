@@ -25,11 +25,36 @@ import { Heuballen } from './world/Heuballen';
 import { SunLight, SONNE } from './world/SunLight';
 import { Weltgrenze } from './world/Weltgrenze';
 import { erzeugeTerrain, type Terraindaten } from './world/heightmap';
-import { erzeugeWelt, type Streckendaten } from './world/strecke';
+import { erzeugeWelt, STRECKE, type Streckendaten } from './world/strecke';
+import { baueStrassennetz, type Strassennetz } from './world/strassennetz';
+import { OFFROAD, PISTEN_WEGE } from './world/Offroad';
 import { RaceZone } from './race/RaceZone';
 import { rennen, rennenAktualisieren, rennenVorbereiten } from './race/rennen';
 import { ChaseCamera } from './camera/ChaseCamera';
 import { telemetrie } from './telemetrie';
+
+/**
+ * Fügt zwischen Stützpunkten weitere Punkte ein.
+ *
+ * Die Geländepisten sind nur durch wenige Eckpunkte beschrieben. Für die
+ * Abstandsprüfung braucht es Punkte im Abstand weniger Meter – sonst hätte
+ * ein Busch mitten zwischen zwei Eckpunkten scheinbar freie Bahn.
+ */
+function verdichte(punkte: { x: number; z: number }[], abstand: number) {
+  const dicht: { x: number; z: number }[] = [];
+  for (let i = 0; i < punkte.length - 1; i++) {
+    const a = punkte[i];
+    const b = punkte[i + 1];
+    const laenge = Math.hypot(b.x - a.x, b.z - a.z);
+    const schritte = Math.max(1, Math.round(laenge / abstand));
+    for (let k = 0; k < schritte; k++) {
+      const t = k / schritte;
+      dicht.push({ x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t });
+    }
+  }
+  dicht.push(punkte[punkte.length - 1]);
+  return dicht;
+}
 
 /** Debug-Schalter: zeigt die Kollisionskörper als Drahtgitter (?debug in der URL). */
 const DEBUG = new URLSearchParams(window.location.search).has('debug');
@@ -92,6 +117,7 @@ interface SceneProps {
     terrain: Terraindaten;
     strecke: Streckendaten;
     nebenstrassen: Streckendaten[];
+    netz: Strassennetz;
   }) => void;
 }
 
@@ -106,19 +132,40 @@ export function Scene({ pausiert, sparsam, onWeltFertig }: SceneProps) {
    * Strecke liest ihre Höhe aus dem Terrain und schneidet sich anschließend
    * hinein. Erst danach darf der Kollisionskörper gebaut werden.
    */
-  const { terrain, strecke, nebenstrassen } = useMemo(() => {
+  const { terrain, strecke, nebenstrassen, netz } = useMemo(() => {
     const t = erzeugeTerrain();
     const { strecke: s, nebenstrassen: n } = erzeugeWelt(t);
     // Kontrollpunkte und Bestzeit vorbereiten – das Rennen selbst startet erst,
     // wenn der Spieler in die Startzone fährt.
     rennenVorbereiten(s);
-    return { terrain: t, strecke: s, nebenstrassen: n };
+
+    /*
+      Das Straßennetz kennt ALLE Fahrwege: Rundkurs, Nebenstraßen und
+      Geländepisten. Bäume, Felsen, Büsche, Heuballen und Leitplanken fragen
+      es, bevor sie sich irgendwo hinstellen – sonst wachsen Büsche mitten auf
+      der Nebenstraße und Leitplanken sperren die Geländepiste ab.
+
+      Die Pisten bekommen etwas mehr Breite mitgegeben als sie sichtbar haben,
+      damit auch neben der Spur genug Platz zum Ausweichen bleibt.
+    */
+    const netz = baueStrassennetz([
+      { punkte: s.punkte, breite: STRECKE.breite + STRECKE.bankett * 2 },
+      ...n.map((strasse) => ({ punkte: strasse.punkte, breite: 8.5 + 5 })),
+      ...PISTEN_WEGE().map((weg) => ({
+        // Die Stützpunkte der Pisten sind grob – für den Abstand fein genug,
+        // wenn wir dazwischen ein paar Punkte einfügen
+        punkte: verdichte(weg, 6),
+        breite: OFFROAD.pistenBreite + 6,
+      })),
+    ]);
+
+    return { terrain: t, strecke: s, nebenstrassen: n, netz };
   }, []);
 
   // Welt einmal nach oben reichen, damit die Karte sie zeichnen kann
   useEffect(() => {
-    onWeltFertig?.({ terrain, strecke, nebenstrassen });
-  }, [terrain, strecke, nebenstrassen, onWeltFertig]);
+    onWeltFertig?.({ terrain, strecke, nebenstrassen, netz });
+  }, [terrain, strecke, nebenstrassen, netz, onWeltFertig]);
 
   const wenigEffekte = sparsam || SPARSAM;
 
@@ -173,11 +220,11 @@ export function Scene({ pausiert, sparsam, onWeltFertig }: SceneProps) {
         {nebenstrassen.map((n, i) => (
           <Road key={i} strecke={n} terrain={terrain} geschlossen={false} breite={8.5} />
         ))}
-        <Leitplanken strecke={strecke} terrain={terrain} />
-        <Baeume terrain={terrain} strecke={strecke} />
-        <Heuballen terrain={terrain} strecke={strecke} />
-        <Deko terrain={terrain} strecke={strecke} />
-        <Offroad terrain={terrain} strecke={strecke} />
+        <Leitplanken strecke={strecke} terrain={terrain} netz={netz} />
+        <Baeume terrain={terrain} netz={netz} />
+        <Heuballen terrain={terrain} strecke={strecke} netz={netz} />
+        <Deko terrain={terrain} strecke={strecke} netz={netz} />
+        <Offroad terrain={terrain} strecke={strecke} netz={netz} />
         <Weltgrenze />
         <Car followRef={autoRef} strecke={strecke} />
       </Physics>

@@ -4,6 +4,7 @@ import { rennen } from '../race/rennen';
 import { WELT, hoeheBei, type Terraindaten } from '../world/heightmap';
 import { STRECKE, type Streckendaten } from '../world/strecke';
 import { planeHaufen } from '../world/Heuballen';
+import type { Strassennetz } from '../world/strassennetz';
 import { PISTEN_WEGE } from '../world/Offroad';
 
 /**
@@ -29,6 +30,8 @@ interface MinimapProps {
   strecke: Streckendaten;
   /** Die offenen Nebenstraßen – werden schmaler und ohne Mittellinie gezeichnet. */
   nebenstrassen?: Streckendaten[];
+  /** Wird für die Heuballen-Marker gebraucht (dieselbe Platzierung wie in 3D). */
+  netz: Strassennetz;
   terrain: Terraindaten;
   /** Große Ansicht über dem ganzen Bild? */
   gross: boolean;
@@ -71,7 +74,14 @@ function macheGelaendeBild(terrain: Terraindaten) {
   return c;
 }
 
-export function Minimap({ strecke, nebenstrassen = [], terrain, gross, onSchliessen }: MinimapProps) {
+export function Minimap({
+  strecke,
+  nebenstrassen = [],
+  terrain,
+  netz,
+  gross,
+  onSchliessen,
+}: MinimapProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const gelaende = useMemo(() => macheGelaendeBild(terrain), [terrain]);
@@ -111,14 +121,14 @@ export function Minimap({ strecke, nebenstrassen = [], terrain, gross, onSchlies
 
   /** Mittelpunkte der Heuballen-Haufen, damit man sie ansteuern kann. */
   const heuHaufen = useMemo(() => {
-    const ballen = planeHaufen(terrain, strecke);
+    const ballen = planeHaufen(terrain, strecke, netz);
     const gruppen: { x: number; z: number }[] = [];
     for (const b of ballen) {
       const nah = gruppen.find((g) => Math.hypot(g.x - b.x, g.z - b.z) < 12);
       if (!nah) gruppen.push({ x: b.x, z: b.z });
     }
     return gruppen;
-  }, [terrain, strecke]);
+  }, [terrain, strecke, netz]);
 
   const groesse = gross ? Math.min(window.innerWidth, window.innerHeight) * 0.82 : KLEIN;
 

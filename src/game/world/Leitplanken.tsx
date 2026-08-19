@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { CuboidCollider, RigidBody } from '@react-three/rapier';
 import { Euler, Matrix4, Quaternion, Vector3 } from 'three';
 import { STRECKE, type Streckendaten } from './strecke';
+import type { Strassennetz } from './strassennetz';
 import { hoeheBei, type Terraindaten } from './heightmap';
 
 /**
@@ -27,6 +28,15 @@ const ABSTURZ_AB = 1.8;
  * Mit diesen Werten sind rund 20 % der Strecke gesichert.
  */
 const MESSWEITE = 18;
+
+/**
+ * So nah darf eine andere Straße oder Piste sein, bevor die Leitplanke
+ * ausgelassen wird.
+ *
+ * Ohne diese Lücke stünde an jeder Kreuzung eine Planke quer über der
+ * einmündenden Straße – man käme dort schlicht nicht durch.
+ */
+const KREUZUNGS_LUECKE = 14;
 /** Wie weit neben der Fahrbahnmitte die Planke steht. */
 const SEITLICH = STRECKE.breite / 2 + STRECKE.bankett * 0.65;
 /** Höhe der Planke über dem Boden. */
@@ -40,7 +50,11 @@ interface Platzierung {
   laenge: number;
 }
 
-function planePlatzierungen(strecke: Streckendaten, terrain: Terraindaten) {
+function planePlatzierungen(
+  strecke: Streckendaten,
+  terrain: Terraindaten,
+  netz: Strassennetz,
+) {
   const pfosten: Platzierung[] = [];
   const planken: Platzierung[] = [];
 
@@ -63,7 +77,18 @@ function planePlatzierungen(strecke: Streckendaten, terrain: Terraindaten) {
       const aussenX = p.x + nx * (SEITLICH + MESSWEITE);
       const aussenZ = p.z + nz * (SEITLICH + MESSWEITE);
       const abfall = y - hoeheBei(terrain, aussenX, aussenZ);
-      const braucht = abfall > ABSTURZ_AB;
+
+      /*
+        Kreuzt hier eine andere Straße oder Piste, bleibt die Planke weg.
+        Der Rundkurs selbst zählt nicht mit – sonst wäre überall Lücke, denn
+        die Planke steht ja direkt an ihm. Deshalb prüfen wir ein Stück weiter
+        außen, wo nur noch fremde Wege liegen können.
+      */
+      const kreuzungX = p.x + nx * (SEITLICH + 6);
+      const kreuzungZ = p.z + nz * (SEITLICH + 6);
+      const fremderWeg = netz.randabstand(kreuzungX, kreuzungZ) < KREUZUNGS_LUECKE;
+
+      const braucht = abfall > ABSTURZ_AB && !fremderWeg;
 
       const hier = new Vector3(x, y, z);
 
@@ -94,12 +119,14 @@ function planePlatzierungen(strecke: Streckendaten, terrain: Terraindaten) {
 interface LeitplankenProps {
   strecke: Streckendaten;
   terrain: Terraindaten;
+  /** Kennt alle Fahrwege – lässt an Kreuzungen eine Lücke. */
+  netz: Strassennetz;
 }
 
-export function Leitplanken({ strecke, terrain }: LeitplankenProps) {
+export function Leitplanken({ strecke, terrain, netz }: LeitplankenProps) {
   const { pfosten, planken } = useMemo(
-    () => planePlatzierungen(strecke, terrain),
-    [strecke, terrain],
+    () => planePlatzierungen(strecke, terrain, netz),
+    [strecke, terrain, netz],
   );
 
   /** Baut die Transformationsmatrizen für ein Instanced Mesh. */

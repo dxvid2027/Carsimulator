@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { CylinderCollider, RigidBody } from '@react-three/rapier';
 import { Euler, Matrix4, Quaternion, Vector3 } from 'three';
 import { WELT, hoeheBei, steigungBei, type Terraindaten } from './heightmap';
-import { STRECKE, abstandZurStrecke, type Streckendaten } from './strecke';
+import type { Strassennetz } from './strassennetz';
 
 /**
  * Bäume als Instanced Meshes.
@@ -16,8 +16,8 @@ import { STRECKE, abstandZurStrecke, type Streckendaten } from './strecke';
  */
 
 const ANZAHL = 620;
-/** Mindestabstand zur Streckenmitte. */
-const ABSTAND_STRASSE = STRECKE.breite / 2 + STRECKE.bankett + STRECKE.uebergang + 6;
+/** Mindestabstand zum Fahrbahnrand – gilt für ALLE Wege, nicht nur den Rundkurs. */
+const ABSTAND_STRASSE = 10;
 /** Ab dieser Steigung wachsen keine Bäume mehr. */
 const MAX_STEIGUNG = 0.55;
 /** Zufallskeim, damit der Wald bei jedem Laden gleich aussieht. */
@@ -42,7 +42,7 @@ interface Baum {
   drehung: number;
 }
 
-function platziereBaeume(terrain: Terraindaten, strecke: Streckendaten): Baum[] {
+function platziereBaeume(terrain: Terraindaten, netz: Strassennetz): Baum[] {
   const rnd = zufall(KEIM);
   const baeume: Baum[] = [];
   const rand = WELT.groesse / 2 - 20;
@@ -56,8 +56,8 @@ function platziereBaeume(terrain: Terraindaten, strecke: Streckendaten): Baum[] 
 
     // Nicht im flachen Startbereich
     if (Math.hypot(x, z) < WELT.startFlaeche + 20) continue;
-    // Nicht auf oder direkt neben der Strecke
-    if (abstandZurStrecke(strecke, x, z).distanz < ABSTAND_STRASSE) continue;
+    // Nicht auf oder direkt neben irgendeinem Fahrweg
+    if (netz.randabstand(x, z) < ABSTAND_STRASSE) continue;
     // Nicht an steilen Hängen
     if (steigungBei(terrain, x, z) > MAX_STEIGUNG) continue;
 
@@ -74,7 +74,8 @@ function platziereBaeume(terrain: Terraindaten, strecke: Streckendaten): Baum[] 
 
 interface BaeumeProps {
   terrain: Terraindaten;
-  strecke: Streckendaten;
+  /** Kennt alle Fahrwege – hält die Bäume von jeder Fahrbahn fern. */
+  netz: Strassennetz;
 }
 
 /** Höhe des Stamms bei Größenfaktor 1. */
@@ -83,8 +84,8 @@ const STAMM_HOEHE = 3.2;
 const KRONE_HOEHE = 6.5;
 const KRONE_RADIUS = 2.3;
 
-export function Baeume({ terrain, strecke }: BaeumeProps) {
-  const baeume = useMemo(() => platziereBaeume(terrain, strecke), [terrain, strecke]);
+export function Baeume({ terrain, netz }: BaeumeProps) {
+  const baeume = useMemo(() => platziereBaeume(terrain, netz), [terrain, netz]);
 
   const { staemme, kronen } = useMemo(() => {
     const q = new Quaternion();

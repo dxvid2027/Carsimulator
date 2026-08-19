@@ -3,7 +3,8 @@ import { useFrame } from '@react-three/fiber';
 import { CuboidCollider, CylinderCollider, RigidBody } from '@react-three/rapier';
 import { Euler, Group, Matrix4, Quaternion, Vector3 } from 'three';
 import { WELT, hoeheBei, steigungBei, type Terraindaten } from './heightmap';
-import { STRECKE, abstandZurStrecke, type Streckendaten } from './strecke';
+import { abstandZurStrecke, type Streckendaten } from './strecke';
+import type { Strassennetz } from './strassennetz';
 
 /**
  * Ausstattung der Landschaft: Felsen, Büsche und ein kleines Dorf.
@@ -19,8 +20,8 @@ import { STRECKE, abstandZurStrecke, type Streckendaten } from './strecke';
 const DEKO = {
   felsen: 260,
   buesche: 420,
-  /** Mindestabstand zur Straße, damit nichts die Fahrbahn blockiert. */
-  abstandStrasse: STRECKE.breite / 2 + STRECKE.bankett + 4,
+  /** Mindestabstand zum Fahrbahnrand, damit nichts die Fahrbahn blockiert. */
+  abstandStrasse: 6,
   keim: 20261,
 } as const;
 
@@ -45,7 +46,7 @@ interface Platz {
 /** Sucht freie Plätze in der Landschaft. */
 function verteile(
   terrain: Terraindaten,
-  strecke: Streckendaten,
+  netz: Strassennetz,
   anzahl: number,
   keim: number,
   maxSteigung: number,
@@ -59,7 +60,7 @@ function verteile(
     versuche++;
     const x = (rnd() - 0.5) * 2 * rand;
     const z = (rnd() - 0.5) * 2 * rand;
-    if (abstandZurStrecke(strecke, x, z).distanz < minAbstand) continue;
+    if (netz.randabstand(x, z) < minAbstand) continue;
     if (steigungBei(terrain, x, z) > maxSteigung) continue;
     liste.push({
       x,
@@ -140,16 +141,18 @@ function Windmuehle({ x, y, z }: { x: number; y: number; z: number }) {
 interface DekoProps {
   terrain: Terraindaten;
   strecke: Streckendaten;
+  /** Kennt alle Fahrwege – hält Felsen, Büsche und Häuser von jeder Fahrbahn fern. */
+  netz: Strassennetz;
 }
 
-export function Deko({ terrain, strecke }: DekoProps) {
+export function Deko({ terrain, strecke, netz }: DekoProps) {
   const felsen = useMemo(
-    () => verteile(terrain, strecke, DEKO.felsen, DEKO.keim, 0.85, DEKO.abstandStrasse),
-    [terrain, strecke],
+    () => verteile(terrain, netz, DEKO.felsen, DEKO.keim, 0.85, DEKO.abstandStrasse),
+    [terrain, netz],
   );
   const buesche = useMemo(
-    () => verteile(terrain, strecke, DEKO.buesche, DEKO.keim + 7, 0.6, DEKO.abstandStrasse - 2),
-    [terrain, strecke],
+    () => verteile(terrain, netz, DEKO.buesche, DEKO.keim + 7, 0.6, DEKO.abstandStrasse),
+    [terrain, netz],
   );
 
   const felsenMatrizen = useMemo(() => matrizen(felsen, (p) => p.groesse * 0.35), [felsen]);
@@ -166,6 +169,8 @@ export function Deko({ terrain, strecke }: DekoProps) {
       const z = (rnd() - 0.5) * (WELT.groesse - 260);
       const d = abstandZurStrecke(strecke, x, z).distanz;
       if (d < 45 || d > 130) continue;
+      // Auch keine Nebenstraße oder Piste überbauen
+      if (netz.randabstand(x, z) < 30) continue;
       const flachheit = 1 - steigungBei(terrain, x, z);
       const punktzahl = flachheit * 3 - Math.abs(d - 70) / 100;
       if (punktzahl > beste) {
@@ -181,7 +186,7 @@ export function Deko({ terrain, strecke }: DekoProps) {
       const radius = 16 + rnd() * 26;
       const x = mitte.x + Math.cos(winkel) * radius;
       const z = mitte.z + Math.sin(winkel) * radius;
-      if (abstandZurStrecke(strecke, x, z).distanz < 30) continue;
+      if (netz.randabstand(x, z) < 16) continue;
       haeuser.push({
         x,
         y: hoeheBei(terrain, x, z),
@@ -205,7 +210,7 @@ export function Deko({ terrain, strecke }: DekoProps) {
     for (let i = 0; i < 900; i++) {
       const x = (rnd() - 0.5) * (WELT.groesse - 200);
       const z = (rnd() - 0.5) * (WELT.groesse - 200);
-      if (abstandZurStrecke(strecke, x, z).distanz < 50) continue;
+      if (netz.randabstand(x, z) < 40) continue;
       if (steigungBei(terrain, x, z) > 0.28) continue;
       const h = hoeheBei(terrain, x, z);
       if (h > beste) {
@@ -214,7 +219,7 @@ export function Deko({ terrain, strecke }: DekoProps) {
       }
     }
     return ort;
-  }, [terrain, strecke]);
+  }, [terrain, netz]);
 
   return (
     <>
