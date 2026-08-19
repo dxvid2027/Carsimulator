@@ -60,6 +60,9 @@ export function PauseMenu({
                 <b>R</b> — reset car
               </div>
               <div>
+                <b>E</b> — start race (in the start zone)
+              </div>
+              <div>
                 <b>Esc</b> or <b>P</b> — pause
               </div>
             </>
@@ -68,6 +71,7 @@ export function PauseMenu({
               <div>Left pad — steer</div>
               <div>Right buttons — throttle, brake, handbrake</div>
               <div>Top right — camera, reset, pause</div>
+              <div>Race starts at the glowing gate on the road</div>
             </>
           )}
         </div>

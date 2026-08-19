@@ -113,17 +113,46 @@ export const FAHRZEUG = {
 
   // ---------- Lenkung ----------
   lenkung: {
-    /** Maximaler Radeinschlag in Radiant (0,55 rad ≈ 31°). Gilt im Stand. */
-    maxEinschlag: 0.55,
+    /**
+     * Maximaler Radeinschlag in Radiant (0,42 rad ≈ 24°). Gilt im Stand.
+     * Damit fährt das Auto im Stand einen Wendekreis von rund 12 m –
+     * eng genug zum Rangieren, aber nicht mehr so giftig wie zuvor.
+     */
+    maxEinschlag: 0.42,
+
+    /**
+     * Zeit in Sekunden von der Mitte bis zum vollen Einschlag.
+     *
+     * Der Einschlag wächst GLEICHMÄSSIG über diese Zeit, nicht exponentiell.
+     * Das ist der wichtigste Unterschied fürs Fahrgefühl: Eine exponentielle
+     * Glättung bewegt die Räder am Anfang am schnellsten – ein kurzes
+     * Antippen erreichte damit schon 63 % des Vollausschlags, und das Auto
+     * zuckte bei jeder kleinen Korrektur.
+     *
+     * Gleichmäßig heißt: halb so lange gedrückt = halber Einschlag. Damit
+     * lässt sich auch mit der Tastatur fein dosieren.
+     */
+    einlenkZeit: 0.55,
+
+    /**
+     * Zeit in Sekunden vom vollen Einschlag zurück in die Mitte.
+     * Bewusst viel kürzer als das Einlenken: Beim Einlenken dosiert man,
+     * beim Zurückstellen will man sofort wieder geradeaus.
+     */
+    rueckstellZeit: 0.18,
+
+    /**
+     * Um diesen Faktor dauert das Einlenken bei Höchstgeschwindigkeit länger.
+     * Bei Tempo reißt niemand das Lenkrad herum.
+     */
+    tempoEinlenkFaktor: 1.7,
+
     /**
      * Wie stark der Einschlag bei Höchstgeschwindigkeit reduziert wird (0–1).
-     * 0,8 heißt: bei Topspeed sind nur noch 20 % Einschlag möglich.
-     *
-     * Warum so viel? Bei 180 km/h reicht schon wenig Lenkeinschlag, um mehr
-     * Seitenkraft zu verlangen, als die Reifen hergeben. Das Auto dreht sich
-     * dann weg, statt der Kurve zu folgen.
+     * 0,72 heißt: bei Topspeed sind nur noch 28 % Einschlag möglich.
      */
-    tempoDaempfung: 0.8,
+    tempoDaempfung: 0.72,
+
     /**
      * Krümmung der Tempo-Kurve.
      * 1 wäre linear – dann fehlt schon bei Stadttempo spürbar Einschlag.
@@ -131,21 +160,15 @@ export const FAHRZEUG = {
      * nehmen ihn erst bei hohem Tempo deutlich zurück.
      */
     tempoKurve: 1.4,
-    /** Wie schnell der Einschlag dem Tastendruck folgt (höher = direkter). */
-    einschlagTempo: 9,
+
     /**
-     * Wie stark das Einlenken bei hohem Tempo verlangsamt wird (0–1).
-     * Bei Tempo reißt man das Lenkrad nicht herum – ohne das lässt sich das
-     * Auto auf der Geraden mit einem Tastendruck aus der Bahn werfen.
+     * Kennlinie für analoge Eingaben (Gamepad-Stick, Touch-Lenkzone).
+     * Werte über 1 machen kleine Auslenkungen feiner und lassen den vollen
+     * Ausschlag erst am Anschlag zu. Für die Tastatur ohne Wirkung, weil
+     * dort der Wert immer 0 oder 1 ist.
      */
-    tempoRatenDaempfung: 0.45,
-    /**
-     * Wie schnell die Räder in die Mitte zurückgehen.
-     * Bewusst deutlich schneller als das Einlenken: Beim Einlenken dosiert man,
-     * beim Zurückstellen will man sofort wieder geradeaus. Das ist der größte
-     * Unterschied zwischen "schwammig" und "direkt".
-     */
-    rueckstellTempo: 16,
+    analogKurve: 1.6,
+
     /** Lenkeinschlag-Faktor während die Handbremse gezogen ist. */
     handbremsFaktor: 0.85,
 

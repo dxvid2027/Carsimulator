@@ -107,6 +107,15 @@ export function fahrschritt(
   const maxHier = lenkung.maxEinschlag * tempoFaktor * handbremsLimit;
 
   /*
+    Analoge Eingaben (Gamepad-Stick, Touch-Lenkzone) über eine Kennlinie
+    schicken: kleine Auslenkungen werden feiner, der volle Ausschlag bleibt
+    dem Anschlag vorbehalten. Bei der Tastatur ist der Wert immer 0 oder 1,
+    da ändert die Kennlinie nichts.
+  */
+  const roh = klemme(eingabe.lenken, -1, 1);
+  const lenkEingabe = Math.sign(roh) * Math.pow(Math.abs(roh), lenkung.analogKurve);
+
+  /*
     b) Gegenlenk-Hilfe.
 
     Bricht das Heck aus, lenkt das Spiel automatisch ein Stück in die
@@ -114,8 +123,8 @@ export function fahrschritt(
     rechts" – fein dosiertes Gegenlenken ist damit unmöglich. Die Hilfe
     übernimmt den feinen Anteil, der Spieler den groben.
 
-    `schraeglauf` ist negativ, wenn das Auto nach links rutscht. Positives
-    Lenken bedeutet ebenfalls links, deshalb das Minuszeichen.
+    `schraeglaufSigniert` ist negativ, wenn das Auto nach links rutscht.
+    Positives Lenken bedeutet ebenfalls links, deshalb das Minuszeichen.
   */
   const schraeglaufSigniert = schraeglaufMitVorzeichen(body);
   const schraeglauf = Math.abs(schraeglaufSigniert);
@@ -130,32 +139,38 @@ export function fahrschritt(
   }
 
   const zielEinschlag = klemme(
-    eingabe.lenken * maxHier + gegenlenkung,
+    lenkEingabe * maxHier + gegenlenkung,
     -lenkung.maxEinschlag,
     lenkung.maxEinschlag,
   );
 
   /*
-    c) Weich nachführen – aber mit zwei verschiedenen Geschwindigkeiten.
+    c) Mit gleichmäßiger Rate nachführen – und zwar mit zwei verschiedenen
+    Raten für Einlenken und Zurückstellen.
 
-    Einlenken geht bewusst langsamer als Zurückstellen. Beim Einlenken dosiert
-    man, beim Zurückstellen will man sofort wieder geradeaus. Genau das ist der
-    Unterschied zwischen "schwammig" und "direkt".
+    Warum keine exponentielle Glättung? Die bewegt die Räder am Anfang am
+    schnellsten. Ein kurzes Antippen erreichte damit über 60 % des vollen
+    Einschlags, und jede kleine Korrektur riss das Auto herum.
 
-    Zusätzlich wird das Einlenken bei hohem Tempo verlangsamt: Bei Tempo reißt
-    niemand das Lenkrad herum, und ohne diese Bremse lässt sich das Auto auf
-    der Geraden mit einem Tastendruck aus der Bahn werfen.
+    Mit fester Rate gilt: halb so lange gedrückt = halber Einschlag.
+    Das lässt sich auch mit der Tastatur sauber dosieren.
   */
   const zurueck =
     Math.abs(zielEinschlag) < Math.abs(zustand.lenkeinschlag) ||
     Math.sign(zielEinschlag) !== Math.sign(zustand.lenkeinschlag);
 
-  const tempo_ = zurueck
-    ? lenkung.rueckstellTempo
-    : lenkung.einschlagTempo * (1 - lenkung.tempoRatenDaempfung * tempoAnteil);
+  // Bei Tempo dauert das Einlenken länger
+  const einlenkZeit =
+    lenkung.einlenkZeit * (1 + tempoAnteil * (lenkung.tempoEinlenkFaktor - 1));
+  const rate = lenkung.maxEinschlag / (zurueck ? lenkung.rueckstellZeit : einlenkZeit);
+  const maxSchritt = rate * PHYSIK_DT;
 
-  zustand.lenkeinschlag +=
-    (zielEinschlag - zustand.lenkeinschlag) * Math.min(1, PHYSIK_DT * tempo_);
+  zustand.lenkeinschlag += klemme(
+    zielEinschlag - zustand.lenkeinschlag,
+    -maxSchritt,
+    maxSchritt,
+  );
+
   for (const i of VORDERRAEDER) controller.setWheelSteering(i, zustand.lenkeinschlag);
 
   // ---------------------------------------------------------------
@@ -312,6 +327,12 @@ export function fahrschritt(
   telemetrie.position.x = p.x;
   telemetrie.position.y = p.y;
   telemetrie.position.z = p.z;
+
+  const q = body.rotation();
+  telemetrie.richtung = Math.atan2(
+    2 * (q.w * q.y + q.x * q.z),
+    1 - 2 * (q.y * q.y + q.z * q.z),
+  );
 
   // Gang und Drehzahl sind reine Anzeige – die Physik kennt keine Gänge.
   const grenzen = FAHRZEUG.getriebe.gangGrenzen;

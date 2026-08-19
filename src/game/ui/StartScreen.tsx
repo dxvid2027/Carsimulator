@@ -23,7 +23,7 @@ export function StartScreen({ vorschlag, onStart }: StartScreenProps) {
     <div className="start">
       <div className="start-box">
         <div className="start-titel">Carsimulator</div>
-        <div className="start-untertitel">Open world driving prototype</div>
+        <div className="start-untertitel">Open world driving</div>
 
         <div className="start-frage">How are you playing?</div>
 
@@ -79,7 +79,9 @@ export function StartScreen({ vorschlag, onStart }: StartScreenProps) {
           Start driving
         </button>
 
-        <div className="start-fuss">You can change this later in the pause menu.</div>
+        <div className="start-fuss">
+          Drive wherever you like. For a timed race, find the glowing gate on the road.
+        </div>
       </div>
     </div>
   );

@@ -13,6 +13,7 @@ import { useRaycastVehicle } from './useRaycastVehicle';
 import { fahrschritt, neuerFahrZustand } from './fahrlogik';
 import { CarModel, WheelModel } from './CarModel';
 import { abstandZurStrecke, startAufStrecke, STRECKE, type Streckendaten } from '../world/strecke';
+import { letzterCheckpoint } from '../race/rennen';
 
 interface CarProps {
   /** Wird mit dem sichtbaren Auto-Objekt befüllt, damit die Kamera ihm folgen kann. */
@@ -49,13 +50,28 @@ export function Car({ followRef, strecke }: CarProps) {
     [start],
   );
 
-  /** Setzt das Auto an den Start zurück (Taste R). */
+  /**
+   * Setzt das Auto zurück (Taste R).
+   *
+   * Läuft gerade ein Rennen, geht es zum zuletzt passierten Kontrollpunkt –
+   * sonst würde ein Ausrutscher das Rennen faktisch beenden. Beim freien
+   * Fahren geht es zur Start-/Ziellinie.
+   */
   const zuruecksetzen = () => {
     const body = chassisRef.current;
     if (!body) return;
-    const [x, y, z] = start.position;
+
+    const cp = letzterCheckpoint();
+    const [x, y, z] = cp ? [cp.x, cp.y + 1.2, cp.z] : start.position;
+    const drehung = cp
+      ? (() => {
+          const gier = Math.atan2(cp.rx, cp.rz);
+          return { x: 0, y: Math.sin(gier / 2), z: 0, w: Math.cos(gier / 2) };
+        })()
+      : startDrehung;
+
     body.setTranslation({ x, y, z }, true);
-    body.setRotation(startDrehung, true);
+    body.setRotation(drehung, true);
     body.setLinvel({ x: 0, y: 0, z: 0 }, true);
     body.setAngvel({ x: 0, y: 0, z: 0 }, true);
     fahrZustand.current.lenkeinschlag = 0;

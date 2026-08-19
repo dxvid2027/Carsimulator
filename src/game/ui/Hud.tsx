@@ -83,7 +83,8 @@ export function Hud() {
         </div>
         <div className="hud-zeile">
           <b>C</b> camera (<span ref={kameraRef}>Chase</span>) <span className="sep">·</span>{' '}
-          <b>R</b> reset <span className="sep">·</span> <b>Esc</b> pause
+          <b>R</b> reset <span className="sep">·</span> <b>E</b> race <span className="sep">·</span>{' '}
+          <b>Esc</b> pause
         </div>
         <div className="hud-zeile">
           <span ref={fpsRef}>60</span> FPS

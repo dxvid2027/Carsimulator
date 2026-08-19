@@ -1,4 +1,5 @@
 import { useMemo, useRef } from 'react';
+import { useFrame } from '@react-three/fiber';
 import { Environment, Sky } from '@react-three/drei';
 import { Physics } from '@react-three/rapier';
 import {
@@ -21,6 +22,8 @@ import { SunLight, SONNE } from './world/SunLight';
 import { Weltgrenze } from './world/Weltgrenze';
 import { erzeugeTerrain } from './world/heightmap';
 import { erzeugeWelt } from './world/strecke';
+import { RaceZone } from './race/RaceZone';
+import { rennen, rennenAktualisieren, rennenVorbereiten } from './race/rennen';
 import { ChaseCamera } from './camera/ChaseCamera';
 import { telemetrie } from './telemetrie';
 
@@ -33,7 +36,46 @@ const SPARSAM = new URLSearchParams(window.location.search).has('sparsam');
 // Im Entwicklungsmodus die Telemetrie in der Browser-Konsole verfügbar machen:
 // einfach `telemetrie` in die Konsole tippen.
 if (import.meta.env.DEV) {
-  (window as unknown as { telemetrie: typeof telemetrie }).telemetrie = telemetrie;
+  const w = window as unknown as { telemetrie: typeof telemetrie; rennen: typeof rennen };
+  w.telemetrie = telemetrie;
+  w.rennen = rennen;
+}
+
+/**
+ * Schreibt den Rennzustand jeden Frame fort.
+ * Eigene Komponente, damit useFrame innerhalb des Canvas läuft.
+ */
+function RennenTakt({ pausiert }: { pausiert: boolean }) {
+  /*
+    Eigene Uhr statt des Frame-Deltas von react-three-fiber.
+
+    Das Frame-Delta wird anderswo auf 0,1 s begrenzt, damit die Kamera nach
+    einem Tab-Wechsel nicht springt. Für eine Stoppuhr wäre das falsch: Auf
+    einem Gerät mit 5 Bildern pro Sekunde liefe die Rundenzeit nur halb so
+    schnell. Deshalb messen wir hier echte Zeit.
+  */
+  const letzterZeitpunkt = useRef<number | null>(null);
+
+  useFrame(() => {
+    if (pausiert) {
+      // Nach der Pause neu ansetzen, damit die Pausendauer nicht mitzählt
+      letzterZeitpunkt.current = null;
+      return;
+    }
+    const jetzt = performance.now();
+    let dt = letzterZeitpunkt.current === null ? 0 : (jetzt - letzterZeitpunkt.current) / 1000;
+    letzterZeitpunkt.current = jetzt;
+    /*
+      Sehr große Lücken nicht mitzählen (Tab im Hintergrund, Gerät gesperrt).
+      Die Schwelle ist bewusst großzügig: Ein Rechner, der nur 2 Bilder pro
+      Sekunde schafft, liefert Frames von 0,5 s – die dürfen nicht verworfen
+      werden, sonst bliebe die Uhr auf schwachen Geräten einfach stehen.
+    */
+    if (dt > 2) dt = 0;
+
+    rennenAktualisieren(dt, telemetrie.position, telemetrie.tempoKmh);
+  });
+  return null;
 }
 
 interface SceneProps {
@@ -57,6 +99,9 @@ export function Scene({ pausiert, sparsam }: SceneProps) {
   const { terrain, strecke } = useMemo(() => {
     const t = erzeugeTerrain();
     const s = erzeugeWelt(t);
+    // Kontrollpunkte und Bestzeit vorbereiten – das Rennen selbst startet erst,
+    // wenn der Spieler in die Startzone fährt.
+    rennenVorbereiten(s);
     return { terrain: t, strecke: s };
   }, []);
 
@@ -113,6 +158,11 @@ export function Scene({ pausiert, sparsam }: SceneProps) {
         <Weltgrenze />
         <Car followRef={autoRef} strecke={strecke} />
       </Physics>
+
+      <RaceZone />
+
+      {/* Rennlogik jeden Frame fortschreiben (nur wenn nicht pausiert) */}
+      <RennenTakt pausiert={pausiert} />
 
       <ChaseCamera ziel={autoRef} />
 

@@ -23,4 +23,10 @@ export const telemetrie = {
   position: { x: 0, y: 0, z: 0 },
   /** 1 = auf der Fahrbahn, 0 = im Gelände. */
   aufAsphalt: 1,
+  /**
+   * Blickrichtung des Autos als Winkel um die Hochachse (Radiant).
+   * 0 = Nase zeigt nach +Z. Wird später für eine Minimap und den
+   * Richtungspfeil zum nächsten Ziel gebraucht.
+   */
+  richtung: 0,
 };

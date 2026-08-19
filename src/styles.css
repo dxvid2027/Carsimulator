@@ -666,3 +666,227 @@ body.touch-modus .hud-drift {
   letter-spacing: 0.1em;
   padding: 9px 13px;
 }
+
+/* ---------- Rennen ---------- */
+.rennen {
+  position: fixed;
+  inset: 0;
+  z-index: 12;
+  pointer-events: none;
+  user-select: none;
+}
+
+.rennen > * {
+  pointer-events: auto;
+}
+
+/* ----- Einladung in der Startzone ----- */
+.rennen-einladung {
+  position: absolute;
+  left: 50%;
+  top: 16%;
+  transform: translateX(-50%);
+  text-align: center;
+  background: rgba(12, 18, 26, 0.82);
+  border: 1px solid rgba(79, 195, 247, 0.4);
+  border-radius: 14px;
+  padding: 16px 22px 18px;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+
+.rennen-einladung-titel {
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #4fc3f7;
+  font-weight: 700;
+}
+
+.rennen-einladung-text {
+  font-size: 14.5px;
+  color: #dbe7f2;
+  margin-top: 6px;
+}
+
+.rennen-einladung-hinweis {
+  font-size: 12px;
+  color: #ffb300;
+  margin-top: 5px;
+  min-height: 16px;
+}
+
+.rennen-knopf {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 11px 18px;
+  font-family: inherit;
+  font-size: 14.5px;
+  font-weight: 700;
+  color: #06202b;
+  background: #4fc3f7;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: filter 0.15s;
+}
+
+.rennen-knopf:hover {
+  filter: brightness(1.1);
+}
+
+.rennen-taste {
+  display: inline-grid;
+  place-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 5px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #cfe9f7;
+  background: rgba(6, 32, 43, 0.55);
+  border-radius: 6px;
+}
+
+/* ----- Countdown ----- */
+.rennen-countdown {
+  position: absolute;
+  left: 50%;
+  top: 36%;
+  transform: translate(-50%, -50%);
+  font-size: 116px;
+  font-weight: 800;
+  color: #fff;
+  text-shadow: 0 6px 40px rgba(0, 0, 0, 0.8);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ----- Tafel während des Rennens ----- */
+.rennen-tafel {
+  position: absolute;
+  left: 24px;
+  top: 20px;
+  min-width: 178px;
+  background: rgba(12, 18, 26, 0.68);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 12px 14px 10px;
+  backdrop-filter: blur(8px);
+}
+
+.rennen-zeile {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 14px;
+  color: #dbe7f2;
+  font-size: 14px;
+}
+
+.rennen-zeile.klein {
+  font-size: 12.5px;
+  color: #9fb3c8;
+  font-variant-numeric: tabular-nums;
+  margin-top: 2px;
+}
+
+.rennen-label {
+  font-size: 10.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #7d93a8;
+}
+
+.rennen-wert {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.rennen-zeit {
+  font-size: 27px;
+  font-weight: 700;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+  margin: 4px 0 6px;
+  letter-spacing: -0.01em;
+}
+
+.rennen-abbrechen {
+  width: 100%;
+  margin-top: 9px;
+  padding: 7px;
+  font-family: inherit;
+  font-size: 11.5px;
+  color: #9fb3c8;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.rennen-abbrechen:hover {
+  color: #dbe7f2;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* ----- Ergebnis ----- */
+.rennen-ergebnis {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  background: rgba(12, 18, 26, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  padding: 26px 34px 24px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+}
+
+.rennen-ergebnis-titel {
+  font-size: 12px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: #7d93a8;
+}
+
+.rennen-ergebnis-zeit {
+  font-size: 44px;
+  font-weight: 800;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+  margin: 6px 0 10px;
+}
+
+.rennen-ergebnis-zeile {
+  font-size: 13.5px;
+  color: #9fb3c8;
+  font-variant-numeric: tabular-nums;
+}
+
+.rennen-ergebnis-zeile span {
+  color: #dbe7f2;
+  font-weight: 600;
+  margin-left: 6px;
+}
+
+.rennen-ergebnis-rekord {
+  margin-top: 8px;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #ffb300;
+  font-weight: 700;
+}
+
+/* Auf Touchgeräten die Tafel nicht unter die Kopfleiste schieben */
+body.touch-modus .rennen-tafel {
+  top: 62px;
+}
+
+body.touch-modus .rennen-einladung {
+  top: 20%;
+}

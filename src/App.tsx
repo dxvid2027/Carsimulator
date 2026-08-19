@@ -6,6 +6,8 @@ import { Hud } from './game/ui/Hud';
 import { TouchControls } from './game/ui/TouchControls';
 import { StartScreen } from './game/ui/StartScreen';
 import { PauseMenu } from './game/ui/PauseMenu';
+import { RaceHud } from './game/ui/RaceHud';
+import { rennen, rennenBeenden, rennenStarten } from './game/race/rennen';
 import { touchEingabe } from './game/input/touchInput';
 import {
   gespeicherteSteuerung,
@@ -49,6 +51,21 @@ export default function App() {
 
   const fortsetzen = useCallback(() => {
     setPhase((p) => (p === 'pause' ? 'laeuft' : p));
+  }, []);
+
+  /*
+    Taste E: In der Startzone startet sie das Rennen, im Ergebnisbildschirm
+    schließt sie es. Sonst passiert nichts – freies Fahren bleibt der
+    Grundzustand.
+  */
+  useEffect(() => {
+    const taste = (e: KeyboardEvent) => {
+      if (e.code !== 'KeyE') return;
+      if (rennen.phase === 'bereit') rennenStarten();
+      else if (rennen.phase === 'beendet') rennenBeenden();
+    };
+    window.addEventListener('keydown', taste);
+    return () => window.removeEventListener('keydown', taste);
   }, []);
 
   // Esc oder P pausiert, Esc im Pausemenü setzt fort
@@ -120,6 +137,8 @@ export default function App() {
       <Suspense fallback={<Ladeanzeige />}>
         <Hud />
       </Suspense>
+
+      {laeuft && <RaceHud />}
 
       {touch && laeuft && <TouchControls onPause={pausieren} />}
 

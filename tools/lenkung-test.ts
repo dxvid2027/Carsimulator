@@ -120,6 +120,35 @@ console.log('\n=== Lenkungs-Test ===\n');
   }
 }
 
+// --- 1b. Kurzer Tastendruck: wie viel passiert bei einem Antippen? ---
+{
+  console.log('\n1b) Kurzer Tastendruck (Dosierbarkeit)');
+  for (const tempo of [30, 60, 120]) {
+    for (const dauer of [0.1, 0.2, 0.4]) {
+      const w = welt();
+      absetzen(w);
+      beschleunigeAuf(w, tempo);
+      const startRichtung = w.body.rotation();
+      for (let i = 0; i < Math.round(dauer * 60); i++) schritt(w, { lenken: 1, gas: halten(w, tempo) });
+      const einschlagNach = Math.abs(einschlag(w));
+      // Noch 1 s ausrollen lassen und schauen, wie weit sich das Auto gedreht hat
+      let maxRate = Math.abs(gierrate(w));
+      for (let i = 0; i < 60; i++) { schritt(w, { lenken: 0, gas: halten(w, tempo) }); maxRate = Math.max(maxRate, Math.abs(gierrate(w))); }
+      const q0 = startRichtung, q1 = w.body.rotation();
+      const gier0 = Math.atan2(2 * (q0.w * q0.y + q0.x * q0.z), 1 - 2 * (q0.y * q0.y + q0.z * q0.z));
+      const gier1 = Math.atan2(2 * (q1.w * q1.y + q1.x * q1.z), 1 - 2 * (q1.y * q1.y + q1.z * q1.z));
+      let gedreht = ((gier1 - gier0) * 180) / Math.PI;
+      while (gedreht > 180) gedreht -= 360;
+      while (gedreht < -180) gedreht += 360;
+      console.log(
+        `   ${String(tempo).padStart(3)} km/h, ${dauer.toFixed(1)} s antippen: ` +
+          `${einschlagNach.toFixed(1).padStart(5)}° Einschlag erreicht, ` +
+          `Auto dreht sich um ${Math.abs(gedreht).toFixed(0).padStart(3)}°, max ${maxRate.toFixed(0)}°/s`,
+      );
+    }
+  }
+}
+
 // --- 2. Rückstellung: wie schnell steht das Lenkrad wieder gerade? ---
 {
   const w = welt();

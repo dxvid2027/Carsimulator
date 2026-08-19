@@ -1,8 +1,14 @@
 # Carsimulator
 
-3D-Open-World-Fahrspiel im Browser (Prototyp im Stil von Forza Horizon).
+3D-Open-World-Fahrspiel im Browser.
 
-**Stand: Phase 2 – fahrbares Auto auf 1 × 1 km Hügel-Terrain, spielbar auch auf dem iPad.**
+**Stand: Phase 4 – offene Welt mit optionalem Rennen. Spielbar auf PC, Tablet und Handy.**
+
+Grundzustand ist **freies Fahren**: keine Uhr, keine Vorgaben, fahr wohin du
+willst. Wer mag, startet an einem markierten Tor auf der Straße ein Rennen über
+zwei Runden.
+
+Die Spieltexte sind auf Englisch, die Code-Kommentare auf Deutsch.
 
 ## Schnellstart
 
@@ -11,8 +17,18 @@ npm install
 npm run dev
 ```
 
-Dann `http://localhost:5173` im Browser öffnen und ins Bild klicken, damit die
-Tastatureingaben ankommen.
+Dann die Adresse öffnen, die im Terminal steht (meist
+`http://localhost:5173`), und **ins Bild klicken**, damit die Tastatur ankommt.
+
+## Startbildschirm
+
+Beim ersten Laden fragt das Spiel, ob du mit **Tastatur** oder per **Touch**
+spielst. Dein Gerät wird vorausgewählt (Badge „detected"), entscheiden tust
+aber du – so funktioniert die Seite auch auf einem Laptop mit Touchscreen
+richtig. Die Wahl wird gemerkt und lässt sich im Pausemenü ändern.
+
+Der Startbildschirm hat noch einen zweiten Zweck: Ein Browser gibt einer Seite
+erst nach einem Klick zuverlässig Tastatur-Fokus.
 
 ## Steuerung (Tastatur)
 
@@ -22,8 +38,10 @@ Tastatureingaben ankommen.
 | `S` / `↓` | Bremse, im Stand Rückwärtsgang |
 | `A` `D` / `←` `→` | Lenken |
 | `Leertaste` | Handbremse (Drift) |
-| `C` | Kamera umschalten: Verfolger → Nah → Cockpit → Übersicht |
+| `C` | Kamera: Chase → Close → Cockpit → Overview |
 | `R` | Auto zurücksetzen |
+| `E` | Rennen starten (im Startbereich) |
+| `Esc` / `P` | Pause |
 
 Ein Gamepad wird automatisch erkannt: RT = Gas, LT = Bremse,
 linker Stick = Lenken, A-Taste = Handbremse.
@@ -34,14 +52,37 @@ Auf Touchgeräten erscheinen automatisch Bedienelemente auf dem Bildschirm:
 
 - **links unten** – Lenkzone. Wo du zuerst hintippst, ist die Mitte. Ziehst du
   von dort nach links oder rechts, lenkt das Auto entsprechend. Du musst also
-  nicht zielen und kannst blind bedienen.
+  nicht zielen und kannst blind mit dem Daumen bedienen.
 - **rechts unten** – Gas, Bremse, Handbremse zum Halten.
-- **rechts oben** – Kamera umschalten und Reset.
+- **rechts oben** – Kamera, Reset und Pause.
 
 Am besten im **Querformat** spielen. Hochkant besteht das halbe Bild aus Himmel.
 
 Zum Ausprobieren am Rechner: `?touch` an die URL hängen erzwingt die
 Touch-Bedienung, `?keyboard` erzwingt die Tastatur-Ansicht.
+
+## Rennen starten (optional)
+
+Auf der Straße steht ein leuchtendes Tor mit einem blauen Ring auf dem Asphalt.
+Fahr hinein und werde langsam – dann erscheint die Einladung. Mit **`E`** oder
+dem Knopf startet ein Rennen über zwei Runden.
+
+- Zehn Kontrollpunkte müssen der Reihe nach passiert werden. Abkürzen zählt nicht.
+- Während des Rennens sind nur das nächste und das übernächste Tor sichtbar,
+  damit die Landschaft nicht zugestellt wird.
+- `R` setzt dich im Rennen an den zuletzt passierten Kontrollpunkt zurück, nicht
+  an den Start – ein Ausrutscher beendet das Rennen also nicht.
+- Die beste Rundenzeit bleibt im Browser gespeichert.
+- „Quit race" bzw. `E` im Ergebnis bringt dich zurück ins freie Fahren.
+
+Das Tor liegt bewusst nicht am Startplatz, sondern rund 650 m die Strecke
+entlang – man soll es beim Herumfahren entdecken.
+
+## Pause
+
+`Esc` oder `P`, auf dem Touchgerät der Knopf `❚❚` oben rechts. Während der
+Pause steht die Physik still. Wechselst du den Tab oder legst das Gerät weg,
+pausiert das Spiel von selbst.
 
 ## Ins Netz stellen (Cloudflare Pages)
 
@@ -59,32 +100,46 @@ Praktisch, wenn du kein Terminal hast – zum Beispiel auf dem iPad.
    - Framework preset: *None*
 4. **Save and Deploy**
 
-Die Node-Version steht in der Datei `.node-version` (22), darum muss man sie
-in Cloudflare nicht extra einstellen.
-
-Nach ein bis zwei Minuten bekommst du eine Adresse wie
-`https://carsimulator.pages.dev`. Jeder weitere Push auf den Branch baut die
-Seite automatisch neu.
+Die Node-Version steht in `.node-version` (22), die muss man nicht extra setzen.
+Nach ein bis zwei Minuten gibt es eine Adresse wie `carsimulator.pages.dev`.
+Jeder weitere Push auf den Branch baut die Seite automatisch neu.
 
 ## Was dieser Prototyp kann
 
 - **Raycast-Vehicle über Rapier** – kein Arcade-Würfel, sondern vier Räder mit
   echter Federung, Grip und Radlastverteilung.
-- **Drift** – zu viel Gas löst das Heck, die Handbremse blockiert die Hinterräder.
-  Eine Gegenlenk-Hilfe macht Drifts auch mit der Tastatur abfangbar.
-- **Weiche Verfolgerkamera** mit Nachlauf und tempoabhängigem Sichtfeld.
-- **HUD** mit Tacho, Gang, Drehzahlbalken und Drift-Anzeige.
+- **Dosierbare Lenkung** mit gleichmäßiger Rate, schneller Rückstellung und
+  Gegenlenk-Hilfe.
+- **Drift** – zu viel Gas löst das Heck, die Handbremse blockiert die
+  Hinterräder. Der Drift lässt sich in unter einer Sekunde abfangen.
+- **1 × 1 km Terrain** aus einer im Code erzeugten Heightmap, mit passendem
+  Kollisionskörper und Einfärbung nach Höhe und Steilheit.
+- **Geschlossener Rundkurs** (ca. 2,2 km) mit Mittel- und Randmarkierung.
+  Die Straße wird ins Terrain eingeschnitten, deshalb braucht sie keinen
+  eigenen Kollisionskörper.
+- **Unterschiedlicher Grip**: Auf Asphalt klebt das Auto, im Gras rutscht es.
+- **Bäume und Leitplanken** als Instanced Meshes, beide mit Kollision.
+  Leitplanken stehen nur dort, wo das Gelände neben der Fahrbahn abfällt.
+- **Optionales Rennen** mit Kontrollpunkten, Rundenzeiten und Bestzeit.
+- **Luftlagen-Stabilisierung** – nach Sprüngen landet das Auto wieder auf den
+  Rädern; bleibt es doch liegen, setzt es sich nach 3 s selbst zurück.
+- **Weiche Verfolgerkamera** mit Nachlauf, Abstandsbegrenzung und
+  tempoabhängigem Sichtfeld, vier Perspektiven.
+- **Grafik**: HDRI-Umgebungslicht, prozeduraler Himmel, Umgebungsverschattung
+  (N8AO), Bloom, ACES-Tonwertkurve, Vignette und SMAA-Kantenglättung.
+- **Touch-Bedienung** für iPad und Handy, inklusive analogem Lenken.
 
 ## Ordnerstruktur
 
 ```
 src/
   main.tsx                  Einstiegspunkt
-  App.tsx                   Canvas, HUD, Touch-Bedienung
-  styles.css                HUD- und Touch-Styling
+  App.tsx                   Canvas, HUD, Menüs, Tastenkürzel
+  styles.css                Styling der gesamten Oberfläche
   game/
     Scene.tsx               Beleuchtung, Physikwelt, Zusammenbau
     telemetrie.ts           Anzeigewerte ohne React-Re-Render
+    spielzustand.ts         Spielphase und gewählte Steuerung
     config/
       vehicleConfig.ts      ALLE Tuning-Werte des Autos
     input/
@@ -94,109 +149,161 @@ src/
       useRaycastVehicle.ts  Erzeugt Rapiers Fahrzeug-Controller
       fahrlogik.ts          Motor, Bremse, Lenkung, Drift, Luftlage
       Car.tsx               Physikkörper + sichtbare Räder
-      CarModel.tsx          Provisorische Karosserie
+      CarModel.tsx          Karosserie aus einfachen Formen
     world/
       heightmap.ts          Prozedurale Höhendaten + Höhenabfrage
+      strecke.ts            Rundkurs erzeugen und ins Terrain einschneiden
       Terrain.tsx           Sichtbares Terrain (Kacheln) + Heightfield-Kollider
+      Road.tsx              Sichtbares Straßenband
+      Leitplanken.tsx       Instanced Meshes an Abhängen
+      Baeume.tsx            Instanced Meshes
       SunLight.tsx          Sonnenlicht, dessen Schatten dem Auto folgt
       Weltgrenze.tsx        Unsichtbare Wände am Kartenrand
+    race/
+      rennen.ts             Zustand, Kontrollpunkte und Zeitmessung
+      RaceZone.tsx          Startzone und Kontrollpunkt-Tore in 3D
     camera/
       ChaseCamera.tsx       Verfolgerkamera
     ui/
       Hud.tsx               Tacho-Overlay
       TouchControls.tsx     Bedienelemente für iPad und Handy
+      StartScreen.tsx       Wahl der Steuerung beim Start
+      PauseMenu.tsx         Pausemenü
+      RaceHud.tsx           Einladung, Countdown, Rundenzeiten, Ergebnis
+public/
+  venice_sunset_1k.hdr      HDRI fürs Umgebungslicht (CC0)
+  ASSETS.md                 Herkunft und Lizenz der Assets
 tools/
   fahrphysik-test.ts        Headless-Test der Fahrphysik
   lenkung-test.ts           Headless-Test des Lenkverhaltens
   terrain-test.ts           Headless-Test des Terrains
+  strecken-test.ts          Headless-Test des Rundkurses
+  rennen-test.ts            Headless-Test der Rennlogik
 ```
 
-## Fahrphysik testen ohne zu fahren
+## Testen ohne Browser
+
+Alle vier Tests starten die echte Physik bzw. Logik ohne Grafik und benutzen
+dieselben Dateien wie das Spiel. Änderst du einen Wert in der Konfiguration,
+siehst du die Auswirkung sofort in Zahlen.
+
+### Fahrphysik
 
 ```bash
 npm run physik
 ```
 
-Das startet die echte Rapier-Physik ohne Browser und misst Beschleunigung,
-Topspeed, Bremsweg, Kurvenstabilität, Drift und die Symmetrie der Lenkung.
-Es benutzt **dieselbe** `fahrlogik.ts` und `vehicleConfig.ts` wie das Spiel –
-wenn du also einen Wert in `vehicleConfig.ts` änderst, siehst du die Auswirkung
-sofort in Zahlen.
-
-Aktuelle Messwerte:
-
 | Messung | Wert |
 |---|---|
 | 0–100 km/h | 4,97 s |
 | Topspeed | 192 km/h |
-| Bremsweg 100–0 km/h | 17,9 m |
+| Bremsweg 100–0 km/h | 18,3 m |
 | Dauerkurve 80 km/h | stabil, kippt nicht |
-| Handbremsen-Drift | bis 43°, fängt sich wieder |
+| Handbremsen-Drift | bis 42°, fängt sich wieder |
 | Luftlage nach Sprung | richtet sich auf, landet auf den Rädern |
 
-## Lenkung testen
+### Lenkung
 
 ```bash
 npm run lenkung
 ```
 
-Misst Ansprechzeit, Rückstellung, Überschwingen, Spurwechsel und wie gut sich
-ein Drift abfangen lässt.
-
 | Messung | Wert |
 |---|---|
-| Einschlag im Stand / bei 180 km/h | 31,5° / 17,5° |
-| Ansprechzeit im Stand | 0,23 s |
-| Rückstellung in die Mitte | 0,13 s |
-| Überschwingen bei 60/120/180 km/h | 1 % / 2 % / 2 % |
-| kleine Lenkbewegung bei 180 km/h | 25,9 °/s Drehrate (ruhig) |
-| Drift abfangen | 1,4 s |
+| Einschlag im Stand / bei 180 km/h | 24,0° / 14,2° |
+| kurzes Antippen (0,1 s) | 5,6° Einschlag, Auto dreht sich 1° |
+| Zeit bis Volleinschlag | 0,47 s |
+| Rückstellung in die Mitte | 0,15 s |
+| Überschwingen bei 60/120/180 km/h | 14 % / 12 % / 2 % |
+| kleine Lenkbewegung bei 180 km/h | 25,7 °/s Drehrate (ruhig) |
+| Drift abfangen | 0,4 s |
 
-Die Lenkung ist bewusst asymmetrisch: **Einlenken geht langsamer als
-Zurückstellen.** Beim Einlenken dosiert man, beim Zurückstellen will man sofort
-wieder geradeaus - das ist der größte Unterschied zwischen "schwammig" und
-"direkt". Zusätzlich werden bei hohem Tempo sowohl der Einschlag als auch die
-Einlenkgeschwindigkeit reduziert.
+Drei Dinge machen das Fahrgefühl aus:
+
+1. **Der Einschlag wächst gleichmäßig über die Zeit**, nicht exponentiell. Eine
+   exponentielle Glättung bewegt die Räder am Anfang am schnellsten – ein
+   kurzes Antippen erreichte damit über 60 % des Vollausschlags, und jede
+   kleine Korrektur riss das Auto herum. Gleichmäßig heißt: halb so lange
+   gedrückt = halber Einschlag.
+2. **Zurückstellen geht schneller als Einlenken.** Beim Einlenken dosiert man,
+   beim Zurückstellen will man sofort wieder geradeaus.
+3. **Die Grip-Verteilung**, nicht nur die Lenkung: Hat die Hinterachse weniger
+   Halt als die Vorderachse, dreht sich das Auto bei Tempo schon bei leichtem
+   Einlenken weg. Deshalb hat die Hinterachse mehr Halt
+   (`grip.hinten > grip.vorne`), wie bei jedem Serienauto.
 
 Bricht das Heck aus, lenkt das Spiel automatisch ein Stück mit
-(`lenkung.gegenlenkHilfe`). Mit der Tastatur gibt es nur "ganz links" oder
-"ganz rechts" - fein dosiertes Gegenlenken wäre damit unmöglich.
+(`lenkung.gegenlenkHilfe`). Mit der Tastatur gibt es nur „ganz links" oder
+„ganz rechts" – fein dosiertes Gegenlenken wäre damit unmöglich.
 
-**Wichtig fürs Fahrgefühl ist auch die Grip-Verteilung**, nicht nur die Lenkung
-selbst: Hat die Hinterachse weniger Halt als die Vorderachse, dreht sich das
-Auto bei Tempo schon bei leichtem Einlenken weg. Deshalb hat die Hinterachse
-hier mehr Halt (`grip.hinten > grip.vorne`), wie bei jedem Serienauto.
-
-## Terrain testen
+### Terrain
 
 ```bash
 npm run terrain
 ```
 
-Prüft die wichtigste Fehlerquelle beim Terrain: ob Rapiers Kollisionskörper
-exakt zu den Höhen passt, die auch das sichtbare Mesh benutzt. Stimmt das
-nicht, schwebt das Auto über dem Boden oder versinkt darin – visuell übersieht
-man das leicht.
+Prüft die wichtigste Fehlerquelle: ob Rapiers Kollisionskörper exakt zu den
+Höhen passt, die auch das sichtbare Mesh benutzt. Stimmt das nicht, schwebt das
+Auto über dem Boden oder versinkt darin – visuell übersieht man das leicht.
 
 | Messung | Wert |
 |---|---|
 | Größe | 1000 × 1000 m, 257 × 257 Höhenpunkte (3,91 m je Zelle) |
-| Höhenbereich | −20,8 m bis +22,6 m |
 | Kollider vs. Höhen-Array | 0,0000 m Fehler auf Gitterpunkten |
 | Startbereich | flach im Radius 60 m |
 | steilste Stelle | 21° |
 
+### Strecke
+
+```bash
+npm run strecke
+```
+
+| Messung | Wert |
+|---|---|
+| Länge | ca. 2165 m, geschlossen |
+| Fahrbahn | 12 m + 4 m Bankett je Seite |
+| engster Kurvenradius | 153 m |
+| steilste Stelle | 11° über 10 m |
+| Selbstabstand | 137 m (der Kurs kreuzt sich nicht) |
+| Kollider vs. Fahrbahn | max. 0,08 m Abweichung |
+
+Kommt sich der Kurs zu nahe, überlagern sich beim Einschneiden zwei
+verschiedene Fahrbahnhöhen und die Straße bekommt eine Stufe. Deshalb probiert
+die Streckenerzeugung automatisch mehrere Zufallskeime durch, bis einer die
+Vorgaben in `STRECKE` erfüllt.
+
+### Rennen
+
+```bash
+npm run rennen
+```
+
+Prüft den Ablauf (freies Fahren → Einladung → Countdown → Runden → Ergebnis),
+ob die Zeitmessung stimmt und ob sich das Rennen abkürzen lässt.
+
+Ein Detail, das dabei aufgefallen ist: Die Rundenuhr darf **nicht** das
+Frame-Delta der Grafik benutzen. Das ist gegen Sprünge nach einem Tab-Wechsel
+begrenzt – auf einem langsamen Gerät liefe die Uhr dadurch zu langsam und die
+Zeiten wären falsch. Sie misst deshalb echte Zeit (siehe `RennenTakt` in
+`Scene.tsx`).
+
 ## Nützliche Hinweise
 
 - **Achsen:** `+Z` ist die Fahrtrichtung, `+Y` ist oben, `+X` ist links.
-- **Landschaft ändern:** die Werte in `WELT` in `src/game/world/heightmap.ts`.
-  `keim` ist der Zufallskeim – eine andere Zahl ergibt eine andere Landschaft.
-- **Debug-Ansicht:** `http://localhost:5173/?debug` zeigt die Kollisionskörper
-  als Drahtgitter.
-- **Telemetrie in der Konsole:** im Dev-Modus einfach `telemetrie` in die
+- **Debug-Ansicht:** `?debug` an die URL hängen zeigt die Kollisionskörper als
+  Drahtgitter.
+- **Weniger Effekte** bei schwacher Grafikleistung: `?sparsam` an die URL
+  hängen. Dann laufen nur noch Tonwertkurve und Kantenglättung.
+- **Telemetrie in der Konsole:** im Dev-Modus `telemetrie` oder `rennen` in die
   Browser-Konsole tippen.
-- **Tuning:** Fast alles Fahrverhalten steckt in `src/game/config/vehicleConfig.ts`
-  und ist dort kommentiert.
+- **Fahrverhalten ändern:** `src/game/config/vehicleConfig.ts` – alles dort ist
+  kommentiert.
+- **Landschaft ändern:** `WELT` in `src/game/world/heightmap.ts`. `keim` ist der
+  Zufallskeim, eine andere Zahl ergibt eine andere Landschaft.
+- **Strecke ändern:** `STRECKE` in `src/game/world/strecke.ts`.
+- **Rennen ändern:** `RENNEN_EINSTELLUNGEN` in `src/game/race/rennen.ts`
+  (Rundenzahl, Anzahl Kontrollpunkte, Lage der Startzone).
 
 ## Weitere Befehle
 
@@ -208,9 +315,8 @@ npm run typecheck  # TypeScript prüfen
 
 ## Nächste Schritte
 
-- 1 × 1 km Terrain aus einer Heightmap
-- Asphaltstraße als geschlossener Rundkurs
-- Bäume und Leitplanken als Instanced Meshes
-- HDRI-Environment, Cascaded Shadows, Postprocessing (Bloom, SSAO)
-- Rundenzeit im HUD
-- LOD und Frustum Culling
+- Minimap mit Richtungspfeil zum Renn-Tor
+- Weitere Aktivitäten in der offenen Welt (Sprungschanzen, Zeitfahrten)
+- Cascaded Shadow Maps statt eines mitwandernden Schattenbereichs
+- LOD für Terrain und Bäume in der Ferne
+- Motorgeräusch und Reifenquietschen
