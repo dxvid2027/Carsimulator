@@ -15,12 +15,23 @@ import { Vector3 } from 'three';
  * Variante dessen, was später Cascaded Shadow Maps machen.
  */
 
-/** Richtung, aus der die Sonne scheint (Einheitsvektor mal Abstand). */
-const SONNENRICHTUNG = new Vector3(0.55, 0.72, 0.42).normalize();
+/**
+ * Richtung, aus der die Sonne scheint.
+ * Wird auch vom Himmel in Scene.tsx benutzt – beide müssen übereinstimmen,
+ * sonst kommt das Licht aus einer anderen Ecke als die Sonne am Himmel steht.
+ */
+export const SONNE = new Vector3(0.5, 0.62, 0.38).normalize();
+
+/** Alter Name, intern weiterverwendet. */
+const SONNENRICHTUNG = SONNE;
 /** Abstand des Lichts zum Auto. Muss zu shadow-camera-far passen. */
-const ABSTAND = 90;
-/** Halbe Kantenlänge des Schattenbereichs in Metern. */
-const SCHATTENBOX = 55;
+const ABSTAND = 120;
+/**
+ * Halbe Kantenlänge des Schattenbereichs in Metern.
+ * Groß genug, dass die Grenze außerhalb des Blickfelds liegt – an dieser Kante
+ * endet sonst sichtbar die Verschattung und man sieht ein Rechteck im Gelände.
+ */
+const SCHATTENBOX = 90;
 
 interface SunLightProps {
   /** Das Objekt, dem der Schattenbereich folgt (das Auto). */
@@ -64,7 +75,13 @@ export function SunLight({ ziel }: SunLightProps) {
         color="#fff4e0"
         castShadow
         shadow-mapSize={[2048, 2048]}
-        shadow-normalBias={0.03}
+        /*
+          normalBias verschiebt den Schatten-Testpunkt entlang der Normalen.
+          Zu klein -> Streifenmuster auf schrägen Flächen ("Shadow Acne"),
+          das an der Grenze des Schattenbereichs als Rechteck sichtbar wird.
+        */
+        shadow-normalBias={0.08}
+        shadow-bias={-0.0004}
         shadow-camera-left={-SCHATTENBOX}
         shadow-camera-right={SCHATTENBOX}
         shadow-camera-top={SCHATTENBOX}

@@ -6,7 +6,7 @@ import { telemetrie } from '../telemetrie';
 /** Die verfügbaren Kameraperspektiven (Taste C schaltet durch). */
 const ANSICHTEN = [
   {
-    name: 'Verfolger',
+    name: 'Chase',
     /** Position relativ zum Auto: hinter ihm (-Z) und darüber (+Y). */
     versatz: new Vector3(0, 2.3, -6.8),
     /** Punkt, auf den die Kamera schaut, relativ zum Auto. */
@@ -19,7 +19,7 @@ const ANSICHTEN = [
     fov: 62,
   },
   {
-    name: 'Nah',
+    name: 'Close',
     versatz: new Vector3(0, 1.7, -4.4),
     ziel: new Vector3(0, 0.8, 4.0),
     traegheitPos: 8,
@@ -37,7 +37,7 @@ const ANSICHTEN = [
     fov: 75,
   },
   {
-    name: 'Übersicht',
+    name: 'Overview',
     versatz: new Vector3(0, 9, -13),
     ziel: new Vector3(0, 0.5, 2.0),
     traegheitPos: 2.5,

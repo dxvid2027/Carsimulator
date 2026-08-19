@@ -18,7 +18,12 @@ import { kameraStatus } from '../camera/ChaseCamera';
 /** Wie weit man ziehen muss (in Pixeln), bis der volle Lenkeinschlag anliegt. */
 const LENKWEG = 75;
 
-export function TouchControls() {
+interface TouchControlsProps {
+  /** Wird gedrückt, wenn der Spieler pausieren will. */
+  onPause: () => void;
+}
+
+export function TouchControls({ onPause }: TouchControlsProps) {
   const lenkzone = useRef<HTMLDivElement>(null);
   const lenkKnopf = useRef<HTMLDivElement>(null);
   const kameraText = useRef<HTMLSpanElement>(null);
@@ -132,15 +137,15 @@ export function TouchControls() {
       <div className="touch-drehen">
         <div className="touch-drehen-inhalt">
           <div className="touch-drehen-symbol">⟳</div>
-          <div>Gerät quer halten</div>
-          <div className="touch-drehen-klein">funktioniert auch hochkant, macht quer aber mehr Spaß</div>
+          <div>Turn your device sideways</div>
+          <div className="touch-drehen-klein">portrait works, landscape is better</div>
         </div>
       </div>
       {/* ---------- Lenken ---------- */}
       <div className="touch-lenken" ref={lenkzone}>
         <div className="touch-lenken-schiene" />
         <div className="touch-lenken-knopf" ref={lenkKnopf} />
-        <div className="touch-lenken-text">ziehen zum Lenken</div>
+        <div className="touch-lenken-text">drag to steer</div>
       </div>
 
       {/* ---------- Pedale ---------- */}
@@ -149,26 +154,26 @@ export function TouchControls() {
           className="touch-knopf touch-handbremse"
           {...halteKnopf((an) => (touchEingabe.handbremse = an))}
         >
-          Hand&shy;bremse
+          Hand&shy;brake
         </button>
         <button
           className="touch-knopf touch-bremse"
           {...halteKnopf((an) => (touchEingabe.bremse = an ? 1 : 0))}
         >
-          Bremse
+          Brake
         </button>
         <button
           className="touch-knopf touch-gas"
           {...halteKnopf((an) => (touchEingabe.gas = an ? 1 : 0))}
         >
-          Gas
+          Throttle
         </button>
       </div>
 
       {/* ---------- Kleine Knöpfe oben ---------- */}
       <div className="touch-oben">
         <button className="touch-klein" onClick={kameraWechseln}>
-          Kamera: <span ref={kameraText}>Verfolger</span>
+          <span ref={kameraText}>Chase</span>
         </button>
         <button
           className="touch-klein"
@@ -177,6 +182,9 @@ export function TouchControls() {
           }}
         >
           Reset
+        </button>
+        <button className="touch-klein touch-pause" onClick={onPause}>
+          ❚❚
         </button>
       </div>
     </div>

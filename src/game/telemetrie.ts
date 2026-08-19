@@ -21,4 +21,6 @@ export const telemetrie = {
   bodenkontakt: 0,
   /** Weltposition des Autos – später für Rundenzeit, Minimap und Streaming. */
   position: { x: 0, y: 0, z: 0 },
+  /** 1 = auf der Fahrbahn, 0 = im Gelände. */
+  aufAsphalt: 1,
 };

@@ -12,16 +12,16 @@ import { useDrivingInput } from '../input/useDrivingInput';
 import { useRaycastVehicle } from './useRaycastVehicle';
 import { fahrschritt, neuerFahrZustand } from './fahrlogik';
 import { CarModel, WheelModel } from './CarModel';
-import { hoeheBei, type Terraindaten } from '../world/heightmap';
+import { abstandZurStrecke, startAufStrecke, STRECKE, type Streckendaten } from '../world/strecke';
 
 interface CarProps {
   /** Wird mit dem sichtbaren Auto-Objekt befüllt, damit die Kamera ihm folgen kann. */
   followRef: React.RefObject<Object3D | null>;
-  /** Höhendaten des Terrains – damit das Auto auf dem Boden startet. */
-  terrain: Terraindaten;
+  /** Der Rundkurs – bestimmt Startplatz und ob das Auto auf Asphalt fährt. */
+  strecke: Streckendaten;
 }
 
-export function Car({ followRef, terrain }: CarProps) {
+export function Car({ followRef, strecke }: CarProps) {
   const chassisRef = useRef<RapierRigidBody>(null);
   const controllerRef = useRaycastVehicle(chassisRef);
   const { eingabe, aktualisieren } = useDrivingInput();
@@ -32,24 +32,30 @@ export function Car({ followRef, terrain }: CarProps) {
   const radRollen = useRef<(Group | null)[]>([]);
 
   /**
-   * Startposition auf Terrainhöhe. Die x/z-Werte kommen aus der Konfiguration,
-   * die Höhe wird aus der Heightmap gelesen – so passt der Start auch dann,
-   * wenn du die Landschaft änderst.
+   * Startplatz: auf der Start-/Ziellinie des Rundkurses, in Fahrtrichtung
+   * ausgerichtet. Höhe und Richtung kommen aus der Strecke – ändert sich der
+   * Kurs, stimmt der Start automatisch mit.
    */
-  const startPosition = useMemo(() => {
-    const [x, , z] = FAHRZEUG.startPosition;
-    const bodenHoehe = hoeheBei(terrain, x, z);
-    // Etwas Luft lassen, damit das Auto sauber einfedert statt zu klemmen
-    return [x, bodenHoehe + FAHRZEUG.startPosition[1], z] as [number, number, number];
-  }, [terrain]);
+  const start = useMemo(() => startAufStrecke(strecke), [strecke]);
+
+  /** Drehung um die Hochachse als Quaternion (für Rapier). */
+  const startDrehung = useMemo(
+    () => ({
+      x: 0,
+      y: Math.sin(start.gierWinkel / 2),
+      z: 0,
+      w: Math.cos(start.gierWinkel / 2),
+    }),
+    [start],
+  );
 
   /** Setzt das Auto an den Start zurück (Taste R). */
   const zuruecksetzen = () => {
     const body = chassisRef.current;
     if (!body) return;
-    const [x, y, z] = startPosition;
+    const [x, y, z] = start.position;
     body.setTranslation({ x, y, z }, true);
-    body.setRotation({ x: 0, y: 0, z: 0, w: 1 }, true);
+    body.setRotation(startDrehung, true);
     body.setLinvel({ x: 0, y: 0, z: 0 }, true);
     body.setAngvel({ x: 0, y: 0, z: 0 }, true);
     fahrZustand.current.lenkeinschlag = 0;
@@ -73,6 +79,21 @@ export function Car({ followRef, terrain }: CarProps) {
     const controller = controllerRef.current;
     const body = chassisRef.current;
     if (!controller || !body) return;
+
+    /*
+      Untergrund bestimmen: Auf Asphalt hat das Auto mehr Grip als auf Wiese.
+      Wir messen dazu den Abstand zur Streckenmitte. Das ist deutlich billiger
+      als ein zweiter Kollisionskörper mit eigenem Reibwert.
+    */
+    const p = body.translation();
+    const abstand = abstandZurStrecke(strecke, p.x, p.z).distanz;
+    const halbeFahrbahn = STRECKE.breite / 2;
+    // Innerhalb der Fahrbahn voller Asphalt-Grip, über das Bankett weich abfallend
+    fahrZustand.current.asphalt =
+      abstand <= halbeFahrbahn
+        ? 1
+        : Math.max(0, 1 - (abstand - halbeFahrbahn) / STRECKE.bankett);
+
     fahrschritt(controller, body, eingabe.current, fahrZustand.current);
   });
 
@@ -103,7 +124,8 @@ export function Car({ followRef, terrain }: CarProps) {
       ref={chassisRef}
       type="dynamic"
       colliders={false}
-      position={startPosition}
+      position={start.position}
+      rotation={[0, start.gierWinkel, 0]}
       canSleep={false}
       angularDamping={FAHRZEUG.hilfen.winkelDaempfung}
       linearDamping={0}

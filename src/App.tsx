@@ -1,29 +1,96 @@
-import { Suspense, useEffect } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { ACESFilmicToneMapping } from 'three';
 import { Scene } from './game/Scene';
 import { Hud } from './game/ui/Hud';
 import { TouchControls } from './game/ui/TouchControls';
-import { istTouchGeraet } from './game/input/touchInput';
+import { StartScreen } from './game/ui/StartScreen';
+import { PauseMenu } from './game/ui/PauseMenu';
+import { touchEingabe } from './game/input/touchInput';
+import {
+  gespeicherteSteuerung,
+  speichereSteuerung,
+  vorschlagSteuerung,
+  type Phase,
+  type Steuerungsart,
+} from './game/spielzustand';
 
-/** Einmal beim Start ermitteln – das ändert sich während des Spiels nicht. */
-const TOUCH = istTouchGeraet();
+/** Vom Gerät abgeleiteter Vorschlag – nur einmal beim Laden bestimmen. */
+const VORSCHLAG = vorschlagSteuerung();
 
 function Ladeanzeige() {
   return (
     <div className="laden">
-      <div>Physik wird geladen …</div>
+      <div>Loading physics …</div>
       <div className="laden-balken" />
     </div>
   );
 }
 
 export default function App() {
-  // Markiert den Body, damit das CSS die Tastatur-Hilfe ausblenden und den
-  // Tacho über die Pedale schieben kann.
+  const [phase, setPhase] = useState<Phase>('start');
+  const [steuerung, setSteuerung] = useState<Steuerungsart>(
+    () => gespeicherteSteuerung() ?? VORSCHLAG,
+  );
+
+  const touch = steuerung === 'touch';
+
+  /*
+    Der Body bekommt eine Klasse, damit das CSS die Tastatur-Hilfe ausblenden
+    und den Tacho über die Pedale schieben kann.
+  */
   useEffect(() => {
-    document.body.classList.toggle('touch-modus', TOUCH);
+    document.body.classList.toggle('touch-modus', touch);
+  }, [touch]);
+
+  const pausieren = useCallback(() => {
+    setPhase((p) => (p === 'laeuft' ? 'pause' : p));
   }, []);
+
+  const fortsetzen = useCallback(() => {
+    setPhase((p) => (p === 'pause' ? 'laeuft' : p));
+  }, []);
+
+  // Esc oder P pausiert, Esc im Pausemenü setzt fort
+  useEffect(() => {
+    const taste = (e: KeyboardEvent) => {
+      if (e.code !== 'Escape' && e.code !== 'KeyP') return;
+      e.preventDefault();
+      setPhase((p) => (p === 'laeuft' ? 'pause' : p === 'pause' ? 'laeuft' : p));
+    };
+    window.addEventListener('keydown', taste);
+    return () => window.removeEventListener('keydown', taste);
+  }, []);
+
+  /*
+    Wechselt der Spieler den Tab oder legt das iPad weg, pausieren wir.
+    Ohne das läuft das Auto im Hintergrund weiter gegen die nächste Wand.
+  */
+  useEffect(() => {
+    const sichtbarkeit = () => {
+      if (document.hidden) pausieren();
+    };
+    document.addEventListener('visibilitychange', sichtbarkeit);
+    return () => document.removeEventListener('visibilitychange', sichtbarkeit);
+  }, [pausieren]);
+
+  const starten = (art: Steuerungsart) => {
+    setSteuerung(art);
+    speichereSteuerung(art);
+    setPhase('laeuft');
+  };
+
+  const steuerungWechseln = (art: Steuerungsart) => {
+    setSteuerung(art);
+    speichereSteuerung(art);
+    // Hängengebliebene Touch-Eingaben löschen, sonst gibt das Auto ewig Gas
+    touchEingabe.gas = 0;
+    touchEingabe.bremse = 0;
+    touchEingabe.lenken = 0;
+    touchEingabe.handbremse = false;
+  };
+
+  const laeuft = phase === 'laeuft';
 
   return (
     <>
@@ -42,19 +109,33 @@ export default function App() {
           also viermal so vielen Pixeln – das kostet auf Tablets zu viel
           Leistung für zu wenig sichtbaren Gewinn.
         */
-        dpr={TOUCH ? [1, 1.5] : [1, 2]}
+        dpr={touch ? [1, 1.5] : [1, 2]}
       >
         <Suspense fallback={null}>
-          <Scene />
+          {/* Solange der Startbildschirm offen ist, steht die Physik still */}
+          <Scene pausiert={!laeuft} />
         </Suspense>
       </Canvas>
 
-      {/* Fällt zurück, solange das Rapier-WASM-Modul lädt */}
       <Suspense fallback={<Ladeanzeige />}>
         <Hud />
       </Suspense>
 
-      {TOUCH && <TouchControls />}
+      {touch && laeuft && <TouchControls onPause={pausieren} />}
+
+      {phase === 'start' && <StartScreen vorschlag={VORSCHLAG} onStart={starten} />}
+
+      {phase === 'pause' && (
+        <PauseMenu
+          steuerung={steuerung}
+          onFortsetzen={fortsetzen}
+          onZuruecksetzen={() => {
+            touchEingabe.reset = true;
+            fortsetzen();
+          }}
+          onSteuerungWechseln={steuerungWechseln}
+        />
+      )}
     </>
   );
 }

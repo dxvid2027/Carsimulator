@@ -69,6 +69,12 @@ export const FAHRZEUG = {
     hinten: 2.3,
     /** Seitenführungskraft. 1 = voller Seitenhalt, 0 = das Rad rutscht seitlich weg. */
     seite: 1.0,
+    /**
+     * Grip-Faktor im Gelände (Wiese, Schotter) gegenüber Asphalt.
+     * 0,72 heißt: neben der Strecke hat man knapp drei Viertel des Grips –
+     * spürbar rutschiger, aber noch kontrollierbar.
+     */
+    gelaende: 0.72,
   },
 
   // ---------- Antrieb ----------

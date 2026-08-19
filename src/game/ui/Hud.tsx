@@ -79,14 +79,14 @@ export function Hud() {
 
       <div className="hud-hilfe">
         <div className="hud-zeile">
-          <b>W / ↑</b> Gas <span className="sep">·</span> <b>S / ↓</b> Bremse &amp; Rückwärts
+          <b>W A S D</b> drive <span className="sep">·</span> <b>Space</b> handbrake
         </div>
         <div className="hud-zeile">
-          <b>A D</b> oder <b>← →</b> Lenken <span className="sep">·</span> <b>Leertaste</b> Handbremse
+          <b>C</b> camera (<span ref={kameraRef}>Chase</span>) <span className="sep">·</span>{' '}
+          <b>R</b> reset <span className="sep">·</span> <b>Esc</b> pause
         </div>
         <div className="hud-zeile">
-          <b>C</b> Kamera (<span ref={kameraRef}>Verfolger</span>) <span className="sep">·</span>{' '}
-          <b>R</b> Reset <span className="sep">·</span> <span ref={fpsRef}>60</span> FPS
+          <span ref={fpsRef}>60</span> FPS
         </div>
       </div>
     </div>

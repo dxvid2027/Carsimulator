@@ -10,10 +10,12 @@ export interface FahrZustand {
   lenkeinschlag: number;
   /** Wie lange das Auto schon kopfüber und still liegt (Sekunden). */
   kopfueberZeit: number;
+  /** 1 = auf Asphalt, 0 = im Gelände. Wird von Car.tsx gesetzt. */
+  asphalt: number;
 }
 
 export function neuerFahrZustand(): FahrZustand {
-  return { lenkeinschlag: 0, kopfueberZeit: 0 };
+  return { lenkeinschlag: 0, kopfueberZeit: 0, asphalt: 1 };
 }
 
 /** Begrenzt einen Wert auf [min, max]. */
@@ -69,6 +71,13 @@ export function fahrschritt(
 ) {
   const { antrieb, lenkung, grip, drift, aero, hilfen } = FAHRZEUG;
 
+  /*
+    Untergrund: Auf Asphalt voller Grip, im Gelände weniger.
+    `zustand.asphalt` läuft von 1 (Fahrbahn) bis 0 (Wiese) und wird in Car.tsx
+    aus dem Abstand zur Streckenmitte berechnet.
+  */
+  const untergrund = grip.gelaende + (1 - grip.gelaende) * zustand.asphalt;
+
   // Vorzeichenbehaftete Geschwindigkeit entlang der Fahrtrichtung
   const tempo = controller.currentVehicleSpeed();
   const tempoAbs = Math.abs(tempo);
@@ -116,7 +125,11 @@ export function fahrschritt(
   }
 
   for (const i of HINTERRAEDER) controller.setWheelEngineForce(i, motorkraft);
-  for (const i of VORDERRAEDER) controller.setWheelBrake(i, bremskraft * antrieb.bremseVorne);
+  for (const i of VORDERRAEDER) {
+    controller.setWheelFrictionSlip(i, grip.vorne * untergrund);
+    controller.setWheelSideFrictionStiffness(i, grip.seite * untergrund);
+    controller.setWheelBrake(i, bremskraft * antrieb.bremseVorne);
+  }
   for (const i of HINTERRAEDER) controller.setWheelBrake(i, bremskraft * antrieb.bremseHinten);
 
   // ---------------------------------------------------------------
@@ -138,8 +151,8 @@ export function fahrschritt(
     }
   }
   for (const i of HINTERRAEDER) {
-    controller.setWheelFrictionSlip(i, gripHinten);
-    controller.setWheelSideFrictionStiffness(i, seiteHinten);
+    controller.setWheelFrictionSlip(i, gripHinten * untergrund);
+    controller.setWheelSideFrictionStiffness(i, seiteHinten * untergrund);
   }
 
   // ---------------------------------------------------------------
@@ -219,6 +232,7 @@ export function fahrschritt(
   telemetrie.tempoKmh = kmh;
   telemetrie.schraeglauf = schraeglauf;
   telemetrie.bodenkontakt = raederAmBoden;
+  telemetrie.aufAsphalt = zustand.asphalt;
 
   // Kopfüber und still? Dann Zeit sammeln – Car.tsx setzt danach zurück.
   if (hoch.y < 0.2 && tempoAbs < 2) {
