@@ -1,8 +1,13 @@
-import { Suspense } from 'react';
+import { Suspense, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { ACESFilmicToneMapping } from 'three';
 import { Scene } from './game/Scene';
 import { Hud } from './game/ui/Hud';
+import { TouchControls } from './game/ui/TouchControls';
+import { istTouchGeraet } from './game/input/touchInput';
+
+/** Einmal beim Start ermitteln – das ändert sich während des Spiels nicht. */
+const TOUCH = istTouchGeraet();
 
 function Ladeanzeige() {
   return (
@@ -14,6 +19,12 @@ function Ladeanzeige() {
 }
 
 export default function App() {
+  // Markiert den Body, damit das CSS die Tastatur-Hilfe ausblenden und den
+  // Tacho über die Pedale schieben kann.
+  useEffect(() => {
+    document.body.classList.toggle('touch-modus', TOUCH);
+  }, []);
+
   return (
     <>
       <Canvas
@@ -26,8 +37,12 @@ export default function App() {
           toneMapping: ACESFilmicToneMapping,
           toneMappingExposure: 1.05,
         }}
-        // Auf Bildschirmen mit hoher Pixeldichte nicht über 2x rendern (Leistung)
-        dpr={[1, 2]}
+        /*
+          Auflösung begrenzen. Ein iPad rendert sonst mit doppelter Pixeldichte,
+          also viermal so vielen Pixeln – das kostet auf Tablets zu viel
+          Leistung für zu wenig sichtbaren Gewinn.
+        */
+        dpr={TOUCH ? [1, 1.5] : [1, 2]}
       >
         <Suspense fallback={null}>
           <Scene />
@@ -38,6 +53,8 @@ export default function App() {
       <Suspense fallback={<Ladeanzeige />}>
         <Hud />
       </Suspense>
+
+      {TOUCH && <TouchControls />}
     </>
   );
 }

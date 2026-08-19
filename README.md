@@ -2,7 +2,7 @@
 
 3D-Open-World-Fahrspiel im Browser (Prototyp im Stil von Forza Horizon).
 
-**Stand: Phase 1 – fahrbares Auto auf flacher Ebene.**
+**Stand: Phase 2 – fahrbares Auto auf 1 × 1 km Hügel-Terrain, spielbar auch auf dem iPad.**
 
 ## Schnellstart
 
@@ -14,7 +14,7 @@ npm run dev
 Dann `http://localhost:5173` im Browser öffnen und ins Bild klicken, damit die
 Tastatureingaben ankommen.
 
-## Steuerung
+## Steuerung (Tastatur)
 
 | Taste | Funktion |
 |---|---|
@@ -27,6 +27,44 @@ Tastatureingaben ankommen.
 
 Ein Gamepad wird automatisch erkannt: RT = Gas, LT = Bremse,
 linker Stick = Lenken, A-Taste = Handbremse.
+
+## Steuerung (iPad, Handy)
+
+Auf Touchgeräten erscheinen automatisch Bedienelemente auf dem Bildschirm:
+
+- **links unten** – Lenkzone. Wo du zuerst hintippst, ist die Mitte. Ziehst du
+  von dort nach links oder rechts, lenkt das Auto entsprechend. Du musst also
+  nicht zielen und kannst blind bedienen.
+- **rechts unten** – Gas, Bremse, Handbremse zum Halten.
+- **rechts oben** – Kamera umschalten und Reset.
+
+Am besten im **Querformat** spielen. Hochkant besteht das halbe Bild aus Himmel.
+
+Zum Ausprobieren am Rechner: `?touch` an die URL hängen erzwingt die
+Touch-Bedienung, `?keyboard` erzwingt die Tastatur-Ansicht.
+
+## Ins Netz stellen (Cloudflare Pages)
+
+Praktisch, wenn du kein Terminal hast – zum Beispiel auf dem iPad.
+
+1. Auf [dash.cloudflare.com](https://dash.cloudflare.com) → **Workers & Pages**
+   → **Create** → **Pages** → **Connect to Git**
+2. GitHub verbinden und dieses Repository auswählen
+3. Einstellungen:
+   - **Production branch:** `claude/3d-open-world-racing-game-y5q7qt`
+     (dieses Repo hat keinen `main`-Branch – der Branch muss von Hand
+     ausgewählt werden, sonst findet Cloudflare nichts zum Bauen)
+   - **Build command:** `npm run build`
+   - **Build output directory:** `dist`
+   - Framework preset: *None*
+4. **Save and Deploy**
+
+Die Node-Version steht in der Datei `.node-version` (22), darum muss man sie
+in Cloudflare nicht extra einstellen.
+
+Nach ein bis zwei Minuten bekommst du eine Adresse wie
+`https://carsimulator.pages.dev`. Jeder weitere Push auf den Branch baut die
+Seite automatisch neu.
 
 ## Was dieser Prototyp kann
 
@@ -41,28 +79,34 @@ linker Stick = Lenken, A-Taste = Handbremse.
 ```
 src/
   main.tsx                  Einstiegspunkt
-  App.tsx                   Canvas + HUD
-  styles.css                HUD-Styling
+  App.tsx                   Canvas, HUD, Touch-Bedienung
+  styles.css                HUD- und Touch-Styling
   game/
     Scene.tsx               Beleuchtung, Physikwelt, Zusammenbau
     telemetrie.ts           Anzeigewerte ohne React-Re-Render
     config/
       vehicleConfig.ts      ALLE Tuning-Werte des Autos
     input/
-      useDrivingInput.ts    Tastatur + Gamepad
+      useDrivingInput.ts    Tastatur + Gamepad + Touch zusammenführen
+      touchInput.ts         Gemeinsamer Zustand der Touch-Bedienung
     vehicle/
       useRaycastVehicle.ts  Erzeugt Rapiers Fahrzeug-Controller
-      fahrlogik.ts          Motor, Bremse, Lenkung, Drift, Aerodynamik
+      fahrlogik.ts          Motor, Bremse, Lenkung, Drift, Luftlage
       Car.tsx               Physikkörper + sichtbare Räder
       CarModel.tsx          Provisorische Karosserie
     world/
-      Ground.tsx            Flache Testebene
+      heightmap.ts          Prozedurale Höhendaten + Höhenabfrage
+      Terrain.tsx           Sichtbares Terrain (Kacheln) + Heightfield-Kollider
+      SunLight.tsx          Sonnenlicht, dessen Schatten dem Auto folgt
+      Weltgrenze.tsx        Unsichtbare Wände am Kartenrand
     camera/
       ChaseCamera.tsx       Verfolgerkamera
     ui/
       Hud.tsx               Tacho-Overlay
+      TouchControls.tsx     Bedienelemente für iPad und Handy
 tools/
   fahrphysik-test.ts        Headless-Test der Fahrphysik
+  terrain-test.ts           Headless-Test des Terrains
 ```
 
 ## Fahrphysik testen ohne zu fahren
@@ -86,10 +130,32 @@ Aktuelle Messwerte:
 | Bremsweg 100–0 km/h | 17,9 m |
 | Dauerkurve 80 km/h | stabil, kippt nicht |
 | Handbremsen-Drift | bis 63°, fängt sich wieder |
+| Luftlage nach Sprung | richtet sich auf, landet auf den Rädern |
+
+## Terrain testen
+
+```bash
+npm run terrain
+```
+
+Prüft die wichtigste Fehlerquelle beim Terrain: ob Rapiers Kollisionskörper
+exakt zu den Höhen passt, die auch das sichtbare Mesh benutzt. Stimmt das
+nicht, schwebt das Auto über dem Boden oder versinkt darin – visuell übersieht
+man das leicht.
+
+| Messung | Wert |
+|---|---|
+| Größe | 1000 × 1000 m, 257 × 257 Höhenpunkte (3,91 m je Zelle) |
+| Höhenbereich | −20,8 m bis +22,6 m |
+| Kollider vs. Höhen-Array | 0,0000 m Fehler auf Gitterpunkten |
+| Startbereich | flach im Radius 60 m |
+| steilste Stelle | 21° |
 
 ## Nützliche Hinweise
 
 - **Achsen:** `+Z` ist die Fahrtrichtung, `+Y` ist oben, `+X` ist links.
+- **Landschaft ändern:** die Werte in `WELT` in `src/game/world/heightmap.ts`.
+  `keim` ist der Zufallskeim – eine andere Zahl ergibt eine andere Landschaft.
 - **Debug-Ansicht:** `http://localhost:5173/?debug` zeigt die Kollisionskörper
   als Drahtgitter.
 - **Telemetrie in der Konsole:** im Dev-Modus einfach `telemetrie` in die

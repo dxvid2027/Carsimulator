@@ -16,6 +16,22 @@ body,
   height: 100%;
   overflow: hidden;
   background: #0b0e13;
+  /* Verhindert das Gummiband-Scrollen und "Ziehen zum Neuladen" auf iOS */
+  overscroll-behavior: none;
+  touch-action: none;
+}
+
+/*
+  Auf iPhone/iPad ist 100% nicht immer die sichtbare Höhe, weil die
+  Adressleiste ein- und ausfährt. `dvh` steht für "dynamic viewport height"
+  und meint immer die tatsächlich sichtbare Höhe.
+*/
+@supports (height: 100dvh) {
+  html,
+  body,
+  #root {
+    height: 100dvh;
+  }
 }
 
 canvas {
@@ -180,4 +196,233 @@ canvas {
 .hud-zeile .sep {
   opacity: 0.4;
   margin: 0 4px;
+}
+
+/* ---------- Touch-Bedienung (iPad, Handy) ---------- */
+.touch {
+  position: fixed;
+  inset: 0;
+  z-index: 15;
+  pointer-events: none; /* nur die Elemente darin sind bedienbar */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.touch > * {
+  pointer-events: auto;
+}
+
+/* ----- Lenkzone links ----- */
+.touch-lenken {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 46%;
+  height: 190px;
+  display: grid;
+  place-items: center;
+  touch-action: none; /* iOS soll hier nicht scrollen oder zoomen */
+  background: linear-gradient(to top, rgba(12, 17, 24, 0.4), transparent);
+}
+
+.touch-lenken-schiene {
+  position: absolute;
+  width: 200px;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.touch-lenken-knopf {
+  position: absolute;
+  width: 74px;
+  height: 74px;
+  border-radius: 50%;
+  background: rgba(232, 241, 248, 0.9);
+  border: 2px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45);
+  opacity: 0.45;
+  transition: opacity 0.12s linear;
+  will-change: transform;
+}
+
+.touch-lenken-text {
+  position: absolute;
+  bottom: 12px;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(159, 179, 200, 0.75);
+}
+
+/* ----- Pedale rechts ----- */
+.touch-pedale {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.touch-knopf {
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 18px;
+  color: #fff;
+  font-family: inherit;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  backdrop-filter: blur(8px);
+  touch-action: none;
+  transition:
+    transform 0.08s ease-out,
+    filter 0.08s ease-out;
+}
+
+.touch-knopf.gedrueckt {
+  transform: scale(0.94);
+  filter: brightness(1.5);
+}
+
+.touch-gas {
+  width: 116px;
+  height: 116px;
+  font-size: 19px;
+  background: rgba(46, 138, 68, 0.72);
+}
+
+.touch-bremse {
+  width: 92px;
+  height: 92px;
+  font-size: 16px;
+  background: rgba(168, 44, 44, 0.72);
+}
+
+.touch-handbremse {
+  width: 78px;
+  height: 78px;
+  font-size: 13px;
+  line-height: 1.15;
+  background: rgba(176, 122, 24, 0.72);
+}
+
+/* ----- Kleine Knöpfe oben rechts ----- */
+.touch-oben {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  display: flex;
+  gap: 8px;
+}
+
+.touch-klein {
+  padding: 9px 14px;
+  font-size: 12.5px;
+  font-family: inherit;
+  color: #cfe0ee;
+  background: rgba(12, 17, 24, 0.62);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  backdrop-filter: blur(8px);
+}
+
+/*
+  Auf Touchgeräten stört die Tastatur-Hilfe unten links – sie läge unter der
+  Lenkzone. Ausblenden, und den Tacho etwas höher setzen, damit die Pedale
+  ihn nicht verdecken.
+*/
+body.touch-modus .hud-hilfe {
+  display: none;
+}
+
+body.touch-modus .hud-tacho {
+  bottom: 148px;
+  right: 22px;
+}
+
+body.touch-modus .hud-drift {
+  top: 8%;
+}
+
+/* Auf schmalen Bildschirmen (Handy quer) alles etwas kleiner */
+@media (max-height: 480px) {
+  .touch-lenken {
+    height: 150px;
+  }
+
+  .touch-gas {
+    width: 96px;
+    height: 96px;
+  }
+
+  .touch-bremse {
+    width: 78px;
+    height: 78px;
+  }
+
+  .touch-handbremse {
+    width: 66px;
+    height: 66px;
+    font-size: 12px;
+  }
+
+  body.touch-modus .hud-tacho {
+    bottom: 118px;
+  }
+
+  .hud-tempo-zahl {
+    font-size: 48px;
+  }
+}
+
+/* ----- Hinweis: Gerät drehen (nur im Hochformat auf Touchgeräten) ----- */
+.touch-drehen {
+  display: none;
+}
+
+@media (orientation: portrait) {
+  body.touch-modus .touch-drehen {
+    position: absolute;
+    left: 50%;
+    top: 34%;
+    transform: translate(-50%, -50%);
+    display: block;
+    pointer-events: none;
+    animation: hinweisAus 7s ease-in forwards;
+  }
+}
+
+.touch-drehen-inhalt {
+  text-align: center;
+  color: #dbe7f2;
+  background: rgba(12, 17, 24, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 14px;
+  padding: 18px 26px;
+  backdrop-filter: blur(8px);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.touch-drehen-symbol {
+  font-size: 30px;
+  margin-bottom: 4px;
+}
+
+.touch-drehen-klein {
+  font-size: 12px;
+  color: #8fa3b8;
+  margin-top: 6px;
+}
+
+/* Hinweis nach ein paar Sekunden ausblenden, damit er nicht dauerhaft stört */
+@keyframes hinweisAus {
+  0%,
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
 }

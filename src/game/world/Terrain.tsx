@@ -19,6 +19,13 @@ import { WELT, ZELLE, type Terraindaten } from './heightmap';
 const KACHELN = 4;
 
 /**
+ * Kantenlänge einer Detailtextur-Kachel in Metern.
+ * Muss die Kachelgröße (groesse / KACHELN = 250 m) glatt teilen,
+ * sonst entstehen sichtbare Nähte.
+ */
+const DETAIL_METER = 10;
+
+/**
  * Feine Detailtextur, im Code erzeugt (kein Download).
  *
  * Die Einfärbung über Vertex-Farben ist großflächig – aus der Nähe sähe der
@@ -43,20 +50,37 @@ function macheDetailTextur() {
   }
   ctx.putImageData(bild, 0, 0);
 
-  // Ein paar dunklere Flecken für etwas Struktur
+  // Ein paar dunklere Flecken für etwas Struktur.
+  // Jeder Fleck wird 9-mal gezeichnet (auch versetzt um ±Kantenlänge), damit
+  // Flecken am Rand auf der gegenüberliegenden Seite fortgesetzt werden.
+  // Sonst hätte die Textur an jeder Wiederholung eine sichtbare Naht.
   ctx.globalAlpha = 0.16;
   for (let i = 0; i < 260; i++) {
     ctx.fillStyle = Math.random() > 0.5 ? '#000' : '#fff';
     const r = 3 + Math.random() * 14;
-    ctx.beginPath();
-    ctx.arc(Math.random() * groesse, Math.random() * groesse, r, 0, Math.PI * 2);
-    ctx.fill();
+    const cx = Math.random() * groesse;
+    const cy = Math.random() * groesse;
+    for (const dx of [-groesse, 0, groesse]) {
+      for (const dy of [-groesse, 0, groesse]) {
+        ctx.beginPath();
+        ctx.arc(cx + dx, cy + dy, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
   }
 
   const tex = new CanvasTexture(c);
   tex.wrapS = tex.wrapT = RepeatWrapping;
-  // Eine Kachel alle 8 Meter
-  tex.repeat.set(WELT.groesse / 8 / KACHELN, WELT.groesse / 8 / KACHELN);
+  /*
+    Die Wiederholung MUSS eine ganze Zahl sein.
+    Die UV-Koordinaten jeder Kachel laufen von 0 bis 1. Bei einem krummen Wert
+    (vorher 31,25) beginnt das Muster an jeder Kachelkante wieder von vorn und
+    man sieht ein Gitter aus Nähten im Boden.
+    250 m Kachelgröße / 10 m Texturgröße = 25 – geht glatt auf.
+  */
+  const kachelMeter = WELT.groesse / KACHELN;
+  const wiederholungen = Math.round(kachelMeter / DETAIL_METER);
+  tex.repeat.set(wiederholungen, wiederholungen);
   tex.colorSpace = SRGBColorSpace;
   tex.anisotropy = 8;
   return tex;
@@ -100,8 +124,15 @@ function baueKachel(daten: Terraindaten, kachelX: number, kachelZ: number) {
 
   const pos = geo.attributes.position as BufferAttribute;
   const farben = new Float32Array(pos.count * 3);
+  const normalen = new Float32Array(pos.count * 3);
   const farbe = new Color();
   const spanne = Math.max(1, maxHoehe - minHoehe);
+
+  /** Höhe an einem Gitterpunkt, am Rand wird der Randwert wiederholt. */
+  const hoeheAn = (ix: number, iz: number) =>
+    hoehen[
+      Math.min(punkte - 1, Math.max(0, iz)) + Math.min(punkte - 1, Math.max(0, ix)) * punkte
+    ];
 
   for (let i = 0; i < pos.count; i++) {
     const weltX = pos.getX(i) + versatzX;
@@ -114,15 +145,33 @@ function baueKachel(daten: Terraindaten, kachelX: number, kachelZ: number) {
     const ixK = Math.min(punkte - 1, Math.max(0, ix));
     const izK = Math.min(punkte - 1, Math.max(0, iz));
 
-    const h = hoehen[izK + ixK * punkte];
+    const h = hoeheAn(ixK, izK);
     pos.setY(i, h);
 
+    // ----- Normale direkt aus der Heightmap -----
+    /*
+      Wichtig: NICHT geo.computeVertexNormals() benutzen!
+      Das mittelt nur über die Dreiecke der jeweiligen Kachel. Ein Punkt auf
+      der Kachelkante bekäme dadurch von links und rechts unterschiedliche
+      Normalen – und man sieht ein Gitternetz aus Lichtkanten im Boden.
+
+      Hier lesen wir die Nachbarhöhen aus dem GEMEINSAMEN Höhen-Array, das über
+      alle Kacheln hinweg gilt. Dadurch ist die Normale an der Kante von beiden
+      Seiten identisch und die Kachelgrenzen verschwinden.
+    */
+    const links = hoeheAn(ixK - 1, izK);
+    const rechts = hoeheAn(ixK + 1, izK);
+    const vorne = hoeheAn(ixK, izK - 1);
+    const hinten = hoeheAn(ixK, izK + 1);
+
+    const nx = -(rechts - links) / (2 * ZELLE);
+    const nz = -(hinten - vorne) / (2 * ZELLE);
+    const laenge = Math.hypot(nx, 1, nz);
+    normalen[i * 3] = nx / laenge;
+    normalen[i * 3 + 1] = 1 / laenge;
+    normalen[i * 3 + 2] = nz / laenge;
+
     // ----- Einfärbung nach Höhe und Steilheit -----
-    // Steilheit aus den Nachbarhöhen im Gitter
-    const links = hoehen[izK + Math.max(0, ixK - 1) * punkte];
-    const rechts = hoehen[izK + Math.min(punkte - 1, ixK + 1) * punkte];
-    const vorne = hoehen[Math.max(0, izK - 1) + ixK * punkte];
-    const hinten = hoehen[Math.min(punkte - 1, izK + 1) + ixK * punkte];
     const neigung = Math.hypot(rechts - links, hinten - vorne) / (2 * ZELLE);
     const steil = Math.min(1, neigung / 1.1);
 
@@ -144,8 +193,7 @@ function baueKachel(daten: Terraindaten, kachelX: number, kachelZ: number) {
   }
 
   geo.setAttribute('color', new BufferAttribute(farben, 3));
-  // Normalen neu berechnen, sonst wäre die Beleuchtung flach und falsch
-  geo.computeVertexNormals();
+  geo.setAttribute('normal', new BufferAttribute(normalen, 3));
   geo.computeBoundingSphere();
 
   return { geo, versatzX, versatzZ };
@@ -194,7 +242,16 @@ export function Terrain({ daten }: TerrainProps) {
           geometry={geo}
           position={[versatzX, 0, versatzZ]}
           receiveShadow
-          castShadow
+          /*
+            Das Terrain wirft bewusst KEINE Schatten.
+            Der Schattenbereich der Sonne ist nur ca. 110 m groß und wandert mit
+            dem Auto mit. Würde sich das Terrain selbst beschatten, sähe man
+            genau an dieser Grenze eine rechteckige Kante im Boden.
+            Der Wagenschatten (der wichtige) bleibt erhalten, und es spart
+            zusätzlich Rechenzeit. Richtige Geländeschatten kommen später mit
+            Cascaded Shadow Maps.
+          */
+          castShadow={false}
         >
           <meshStandardMaterial map={detail} vertexColors roughness={0.95} metalness={0} />
         </mesh>

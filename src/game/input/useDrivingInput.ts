@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { touchEingabe } from './touchInput';
 
 /** Der aufbereitete Fahrer-Input, den die Fahrzeugphysik jeden Schritt liest. */
 export interface FahrEingabe {
@@ -74,7 +75,19 @@ export function useDrivingInput() {
     let bremse = an(TASTEN.bremse) ? 1 : 0;
     let lenken = (an(TASTEN.links) ? 1 : 0) - (an(TASTEN.rechts) ? 1 : 0);
     let handbremse = an(TASTEN.handbremse);
-    const reset = an(TASTEN.reset);
+    let reset = an(TASTEN.reset);
+
+    // --- Touch-Bedienung (iPad, Handy) ---
+    // Der jeweils stärkere Wert gewinnt, damit Tastatur und Finger sich nicht
+    // gegenseitig ausbremsen, wenn beides vorhanden ist.
+    gas = Math.max(gas, touchEingabe.gas);
+    bremse = Math.max(bremse, touchEingabe.bremse);
+    if (touchEingabe.lenken !== 0) lenken = touchEingabe.lenken;
+    handbremse = handbremse || touchEingabe.handbremse;
+    if (touchEingabe.reset) {
+      reset = true;
+      touchEingabe.reset = false; // nur einmal auslösen
+    }
 
     // --- Gamepad (falls eines verbunden ist) ---
     const pads = navigator.getGamepads?.() ?? [];
