@@ -20,6 +20,7 @@ import {
   STRASSENBAUTEN,
   STUNTPARK,
   aussichtsturmOrt,
+  bauernhofOrt,
   dorfOrt,
   felsenfeldOrt,
   strassenplatz,
@@ -127,6 +128,7 @@ const orte = [
   ['Windmühle', muehle],
   ['Felsenfeld', felsen],
   ['Aussichtsturm', aussichtsturmOrt(terrain, netz)],
+  ['Bauernhof', bauernhofOrt(terrain, netz)],
 ] as const;
 let minAbstand = Infinity;
 let paar = '';

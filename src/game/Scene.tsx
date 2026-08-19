@@ -22,10 +22,12 @@ import { Deko } from './world/Deko';
 import { Offroad } from './world/Offroad';
 import { Stuntpark } from './world/Stuntpark';
 import { Attraktionen } from './world/Attraktionen';
+import { Bauernhof } from './world/Bauernhof';
 import {
   STRASSENBAUTEN,
   STUNTPARK,
   aussichtsturmOrt,
+  bauernhofOrt,
   dorfOrt,
   felsenfeldOrt,
   stuntparkOrt,
@@ -100,6 +102,7 @@ function OrteFuerEntwicklung({
       windmuehle: windmuehleOrt(terrain, netz),
       felsenfeld: felsenfeldOrt(terrain, netz),
       aussichtsturm: aussichtsturmOrt(terrain, netz),
+      bauernhof: bauernhofOrt(terrain, netz),
       tankstelle: strassenplatz(
         terrain, strecke, STRASSENBAUTEN.tankstelle.anteil, STRASSENBAUTEN.tankstelle.seitlich,
       ),
@@ -280,6 +283,7 @@ export function Scene({ pausiert, sparsam, onWeltFertig }: SceneProps) {
         <Offroad terrain={terrain} strecke={strecke} netz={netz} />
         <Stuntpark terrain={terrain} netz={netz} />
         <Attraktionen terrain={terrain} netz={netz} strecke={strecke} />
+        <Bauernhof terrain={terrain} netz={netz} />
         <Weltgrenze />
         <Car followRef={autoRef} strecke={strecke} />
       </Physics>

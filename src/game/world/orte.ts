@@ -219,6 +219,7 @@ function sperrkreise(
     { x: dorf.x, z: dorf.z, radius: 55 },
     { x: muehle.x, z: muehle.z, radius: 20 },
     { x: turm.x, z: turm.z, radius: 22 },
+    { ...bauernhofOrt(terrain, netz), radius: 38 },
     // Das Felsentor an der Einfahrt zum Felsenfeld
     { x: felsen.x, z: felsen.z - 58, radius: 18 },
     // Die Tankstelle am Straßenrand
@@ -289,6 +290,31 @@ export const STRASSENBAUTEN = {
     { anteil: 0.86, seitlich: 20, breite: 9, laenge: 13, hoehe: 2.4 },
   ],
 } as const;
+
+/**
+ * Der Bauernhof liegt in Sichtweite des Dorfes, aber nicht darin.
+ *
+ * Er braucht eine flache Fläche für Scheune, Silo und Wasserturm – und genug
+ * Abstand zur Straße, damit der Hofplatz nicht auf der Fahrbahn endet.
+ */
+function bauernhofOrtSuchen(terrain: Terraindaten, netz: Strassennetz): Ort {
+  const dorf = dorfOrt(terrain, netz);
+  return suche(terrain, 88213, 1200, (x, z) => {
+    if (netz.randabstand(x, z) < 45) return -Infinity;
+    const zumDorf = Math.hypot(x - dorf.x, z - dorf.z);
+    if (zumDorf < 90 || zumDorf > 190) return -Infinity;
+    let flachheit = 0;
+    for (const [dx, dz] of [[0, 0], [18, 0], [-18, 0], [0, 18], [0, -18]]) {
+      flachheit += 1 - steigungBei(terrain, x + dx, z + dz);
+    }
+    return flachheit;
+  });
+}
+
+/** Der Bauernhof mit Scheune, Silo und Wasserturm. */
+export function bauernhofOrt(terrain: Terraindaten, netz: Strassennetz): Ort {
+  return merke(terrain, 'bauernhof', () => bauernhofOrtSuchen(terrain, netz));
+}
 
 /** Ein Platz direkt an der Straße – mit Blickrichtung zur Fahrbahn. */
 export interface Strassenplatz extends Ort {

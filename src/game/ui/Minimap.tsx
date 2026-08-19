@@ -8,6 +8,7 @@ import type { Strassennetz } from '../world/strassennetz';
 import {
   STRASSENBAUTEN,
   aussichtsturmOrt,
+  bauernhofOrt,
   dorfOrt,
   felsenfeldOrt,
   strassenplatz,
@@ -139,6 +140,7 @@ export function Minimap({
       { name: 'Windmill', symbol: '✳', farbe: '#e8dcc0', ...windmuehleOrt(terrain, netz) },
       { name: 'Rocks', symbol: '◆', farbe: '#b9b2a6', ...felsenfeldOrt(terrain, netz) },
       { name: 'Lookout', symbol: '⌇', farbe: '#ff6f5e', ...aussichtsturmOrt(terrain, netz) },
+      { name: 'Farm', symbol: '▤', farbe: '#e08a5a', ...bauernhofOrt(terrain, netz) },
       {
         name: 'Gas',
         symbol: '⛽',

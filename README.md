@@ -143,6 +143,8 @@ Jeder weitere Push auf den Branch baut die Seite automatisch neu.
   springen, im Gelände landen.
 - **Sehenswürdigkeiten**: Aussichtsturm mit Blinklicht, Felsentor zum
   Durchfahren, Tankstelle am Rundkurs und drei Heißluftballons am Himmel.
+- **Bauernhof** in Sichtweite des Dorfes: Scheune mit Satteldach, Silo,
+  Wasserturm und ein Weidezaun, durch den man hindurchfahren kann.
 - **Landschaft**: Felsen, Büsche, ein kleines Dorf mit Häusern, eine Windmühle
   mit drehenden Flügeln als Wahrzeichen und eine sichtbare Sonne.
 - **Zwei Nebenstraßen** quer über die Karte, ebenfalls ins Terrain geschnitten.
@@ -186,6 +188,7 @@ src/
                             für 3D-Welt und Karte)
       Stuntpark.tsx         Rampen, Plattform, Container, Kiesplatz
       Attraktionen.tsx      Aussichtsturm, Felsentor, Tankstelle, Ballons
+      Bauernhof.tsx         Scheune, Silo, Wasserturm, Weidezaun
       Sonne.tsx             Sichtbare Sonnenscheibe
       strecke.ts            Rundkurs erzeugen und ins Terrain einschneiden
       Terrain.tsx           Sichtbares Terrain (Kacheln) + Heightfield-Kollider
