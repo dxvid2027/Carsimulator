@@ -101,10 +101,73 @@ Praktisch, wenn du kein Terminal hast – zum Beispiel auf dem iPad.
    - **Build output directory:** `dist`
    - Framework preset: *None*
 4. **Save and Deploy**
+5. Danach noch den KV-Speicher für die Passwortsperre anlegen – siehe
+   „Passwortsperre" weiter unten. Ohne ihn zeigt die Seite nur eine Anleitung.
 
 Die Node-Version steht in `.node-version` (22), die muss man nicht extra setzen.
 Nach ein bis zwei Minuten gibt es eine Adresse wie `carsimulator.pages.dev`.
 Jeder weitere Push auf den Branch baut die Seite automatisch neu.
+
+## Passwortsperre
+
+Die Seite ist nicht öffentlich: Ohne Passwort bekommt man nichts vom Spiel zu
+sehen – auch keine JavaScript-Dateien und keine Bilder.
+
+**Wie es abläuft**
+
+1. Der **erste Besucher** der Seite legt das Passwort fest (zweimal eingeben).
+2. Ab dann fragt die Seite jeden nach genau diesem Passwort.
+3. Wer es richtig eingibt, bleibt 30 Tage lang angemeldet.
+
+Ein zweiter Besucher kann **kein** neues Passwort setzen – sobald eines
+existiert, ist dieser Weg zu.
+
+**Warum das auf dem Server läuft**
+
+Ein Passwort, das nur im Browser geprüft wird, ist keine Sperre: Wer die Seite
+öffnet, hat den Prüfcode schon heruntergeladen und kann ihn lesen oder
+umgehen. Außerdem müsste jedes Gerät sein eigenes Passwort festlegen – „der
+Erste bestimmt es" gäbe es dann gar nicht.
+
+Deshalb prüft eine **Cloudflare Pages Function** (`functions/_middleware.ts`)
+jede einzelne Anfrage, und das Passwort liegt in einem KV-Speicher. Gespeichert
+wird nie das Passwort selbst, sondern nur ein Hash (PBKDF2 mit Salz) – daraus
+lässt es sich nicht zurückrechnen. Der Browser bekommt ein unterschriebenes
+Ticket als Cookie.
+
+**Einmal einrichten (Cloudflare)**
+
+1. **Storage & Databases → KV → Create namespace**, Name z. B.
+   `carsimulator-passwort`
+2. **Workers & Pages → dein Projekt → Settings → Bindings → Add → KV namespace**
+3. Variable name: `PASSWORT` — Namespace: der eben erstellte
+4. Speichern und neu deployen
+
+Fehlt die Bindung, zeigt die Seite statt des Spiels genau diese Anleitung –
+sie gibt das Spiel **nicht** ersatzweise frei.
+
+**Passwort vergessen?** In Cloudflare den KV-Namespace öffnen und den Eintrag
+`passwort` löschen. Der nächste Besucher legt dann ein neues fest.
+
+**Örtlich testen**
+
+`npm run dev` startet nur das Spiel – Cloudflare-Functions laufen dort nicht,
+die Sperre ist also nicht dabei. Zum Testen der Sperre:
+
+```bash
+npm run sperre
+```
+
+Das baut die Seite und startet sie mit einem lokalen KV-Speicher unter
+http://localhost:8788. Zum Zurücksetzen des Test-Passworts den Ordner
+`.wrangler` löschen.
+
+| Datei | Aufgabe |
+|---|---|
+| `functions/_middleware.ts` | Türsteher, läuft bei jeder Anfrage |
+| `functions/api/passwort.ts` | Passwort setzen und prüfen |
+| `zutritt/gemeinsam.ts` | Hash, Ticket, Cookie |
+| `zutritt/anmeldeseite.ts` | Die Anmeldeseite als HTML |
 
 ## Zum Home-Bildschirm hinzufügen (iPhone, iPad)
 
@@ -270,6 +333,12 @@ src/
       RaceHud.tsx           Einladung, Countdown, Rundenzeiten, Ergebnis
       Minimap.tsx           Karte oben rechts (2D-Canvas, nicht 3D)
       Logo.tsx              Spiel-Logo als SVG
+functions/
+  _middleware.ts            Passwortsperre: prüft jede Anfrage
+  api/passwort.ts           Passwort setzen und prüfen
+zutritt/
+  gemeinsam.ts              Hash, Ticket, Cookie
+  anmeldeseite.ts           Anmelde- und Einrichtungsseite als HTML
 public/
   venice_sunset_1k.hdr      HDRI fürs Umgebungslicht (CC0)
   icon.svg                  Vorlage für alle App-Symbole
@@ -494,6 +563,7 @@ npm run build      # Produktions-Build
 npm run preview    # Produktions-Build lokal ansehen
 npm run typecheck  # TypeScript prüfen
 npm run icons      # App-Symbole aus public/icon.svg neu erzeugen
+npm run sperre     # Seite MIT Passwortsperre lokal starten (Port 8788)
 ```
 
 ## Nächste Schritte

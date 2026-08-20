@@ -16,7 +16,8 @@
     "heu": "tsx tools/heuballen-test.ts",
     "wege": "tsx tools/wege-test.ts",
     "orte": "tsx tools/orte-test.ts",
-    "icons": "tsx tools/icons-bauen.ts"
+    "icons": "tsx tools/icons-bauen.ts",
+    "sperre": "npm run build && wrangler pages dev dist --kv PASSWORT --port 8788"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "0.19.2",
@@ -38,6 +39,7 @@
     "playwright": "^1.62.1",
     "tsx": "^4.23.12",
     "typescript": "^5.9.3",
-    "vite": "^8.2.1"
+    "vite": "^8.2.1",
+    "wrangler": "^4.124.0"
   }
 }
