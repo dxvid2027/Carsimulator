@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { CylinderCollider, RigidBody } from '@react-three/rapier';
-import { Euler, Matrix4, Quaternion, Vector3 } from 'three';
+import { Color, Euler, Matrix4, Quaternion, SRGBColorSpace, Vector3 } from 'three';
 import { WELT, hoeheBei, steigungBei, type Terraindaten } from './heightmap';
 import type { Strassennetz } from './strassennetz';
 import type { Streckendaten } from './strecke';
@@ -125,6 +125,41 @@ export function Baeume({ terrain, netz, strecke }: BaeumeProps) {
     return { staemme, kronen };
   }, [baeume]);
 
+  /**
+   * Eine Grünnuance pro Baum.
+   *
+   * Vorher hatten alle 620 Kronen exakt dieselbe Farbe – das sieht aus wie
+   * gestempelt. Ein echter Wald hat in jedem Baum einen anderen Ton: manche
+   * gelblich, manche fast blaugrün, manche dunkler.
+   *
+   * `setColorAt` gibt jeder Instanz ihre eigene Farbe, OHNE einen zusätzlichen
+   * Zeichenbefehl – es kostet also praktisch nichts. Die Farbe wird mit der
+   * Materialfarbe multipliziert, deshalb muss das Material unten weiß sein,
+   * sonst wird alles zusätzlich abgedunkelt.
+   */
+  const kronenFarben = useMemo(() => {
+    const rnd = zufall(KEIM + 99);
+    const c = new Color();
+    return baeume.map(() => {
+      /*
+        Farbton zwischen gelbgrün und blaugrün, dazu unterschiedliche
+        Sättigung und Helligkeit.
+
+        Das `SRGBColorSpace` am Ende ist wichtig: Ohne die Angabe rechnet
+        three.js die Werte als LINEARE Farbe. Eine Helligkeit von 0,2 landet
+        dann bei etwa 0,48 in sRGB – die Kronen wären viel zu hell und die
+        Bäume sähen aus wie mintgrüne Kegel.
+      */
+      c.setHSL(
+        0.23 + rnd() * 0.08,
+        0.32 + rnd() * 0.24,
+        0.15 + rnd() * 0.13,
+        SRGBColorSpace,
+      );
+      return c.clone();
+    });
+  }, [baeume]);
+
   if (baeume.length === 0) return null;
 
   return (
@@ -148,13 +183,22 @@ export function Baeume({ terrain, netz, strecke }: BaeumeProps) {
         castShadow
         ref={(mesh) => {
           if (!mesh) return;
-          kronen.forEach((m, i) => mesh.setMatrixAt(i, m));
+          kronen.forEach((m, i) => {
+            mesh.setMatrixAt(i, m);
+            mesh.setColorAt(i, kronenFarben[i]);
+          });
           mesh.instanceMatrix.needsUpdate = true;
+          if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
           mesh.computeBoundingSphere();
         }}
       >
+        {/*
+          7 Seiten und flatShading: kantige Kronen fangen das Licht in
+          deutlich unterscheidbaren Flächen ein. Eine glatt schattierte Krone
+          sieht aus wie ein grüner Kegel.
+        */}
         <coneGeometry args={[KRONE_RADIUS, KRONE_HOEHE, 7]} />
-        <meshStandardMaterial color="#2f4a24" roughness={0.9} />
+        <meshStandardMaterial color="#ffffff" roughness={0.92} flatShading />
       </instancedMesh>
 
       {/*

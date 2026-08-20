@@ -16,8 +16,14 @@ import { SONNE } from './SunLight';
 
 /** Entfernung der Sonnenscheibe. Muss innerhalb der Kamera-Weitsicht liegen. */
 const ENTFERNUNG = 1500;
-/** Größe der Scheibe. */
-const GROESSE = 190;
+/**
+ * Größe der Scheibe.
+ *
+ * Kleiner als früher: Bei tiefem Sonnenstand steht die Scheibe mitten im Bild.
+ * Eine kleine, sehr helle Scheibe wirkt heißer als eine große, blasse – den
+ * Rest der Aufhellung macht Bloom.
+ */
+const GROESSE = 130;
 
 /** Weicher runder Verlauf, im Code gezeichnet. */
 function macheSonnenTextur() {
@@ -26,7 +32,8 @@ function macheSonnenTextur() {
   c.width = c.height = g;
   const ctx = c.getContext('2d')!;
   const verlauf = ctx.createRadialGradient(g / 2, g / 2, 0, g / 2, g / 2, g / 2);
-  verlauf.addColorStop(0, 'rgba(255, 252, 235, 1)');
+  verlauf.addColorStop(0, 'rgba(255, 255, 250, 1)');
+  verlauf.addColorStop(0.08, 'rgba(255, 250, 228, 1)');
   verlauf.addColorStop(0.12, 'rgba(255, 244, 200, 0.95)');
   verlauf.addColorStop(0.32, 'rgba(255, 214, 130, 0.42)');
   verlauf.addColorStop(0.62, 'rgba(255, 186, 96, 0.12)');

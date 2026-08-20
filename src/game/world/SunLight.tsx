@@ -17,10 +17,16 @@ import { Vector3 } from 'three';
 
 /**
  * Richtung, aus der die Sonne scheint.
+ *
+ * Bewusst flach (ca. 22° über dem Horizont): Dann werfen Hügel, Bäume und das
+ * Auto lange Schatten, Hänge werden je nach Ausrichtung hell oder dunkel und
+ * die Landschaft bekommt überhaupt erst eine Form. Bei hochstehender Sonne
+ * sieht alles gleich beleuchtet und damit flach aus.
+ *
  * Wird auch vom Himmel in Scene.tsx benutzt – beide müssen übereinstimmen,
  * sonst kommt das Licht aus einer anderen Ecke als die Sonne am Himmel steht.
  */
-export const SONNE = new Vector3(0.5, 0.62, 0.38).normalize();
+export const SONNE = new Vector3(0.55, 0.34, 0.62).normalize();
 
 /** Alter Name, intern weiterverwendet. */
 const SONNENRICHTUNG = SONNE;
@@ -28,10 +34,15 @@ const SONNENRICHTUNG = SONNE;
 const ABSTAND = 95;
 /**
  * Halbe Kantenlänge des Schattenbereichs in Metern.
+ *
  * Groß genug, dass die Grenze außerhalb des Blickfelds liegt – an dieser Kante
  * endet sonst sichtbar die Verschattung und man sieht ein Rechteck im Gelände.
+ *
+ * Etwas größer als früher, weil die flache Sonne deutlich längere Schatten
+ * wirft: Ein 10 m hoher Baum legt jetzt gut 25 m Schatten. Stünde er knapp
+ * außerhalb der Box, fehlte sein Schatten mitten im Bild.
  */
-const SCHATTENBOX = 48;
+const SCHATTENBOX = 58;
 
 interface SunLightProps {
   /** Das Objekt, dem der Schattenbereich folgt (das Auto). */
@@ -71,8 +82,8 @@ export function SunLight({ ziel }: SunLightProps) {
     <>
       <directionalLight
         ref={lichtRef}
-        intensity={2.6}
-        color="#fff4e0"
+        intensity={2.5}
+        color="#ffdcaf"
         castShadow
         shadow-mapSize={[2048, 2048]}
         /*
@@ -103,11 +114,16 @@ export function SunLight({ ziel }: SunLightProps) {
           gesamte Bereich innerhalb der Schattenkamera wird gleichmäßig
           abgedunkelt. Sichtbar als dunkles Rechteck, das mitwandert.
 
-          Mit einem engen Bereich (hier gut 100 m) steckt die volle
-          Genauigkeit dort, wo sie gebraucht wird.
+          Mit einem engen Bereich steckt die volle Genauigkeit dort, wo sie
+          gebraucht wird.
+
+          Etwas weiter gefasst als früher: Die Schattenkamera schaut wegen der
+          flachen Sonne schräger über das Gelände, dadurch liegen der nächste
+          und der entfernteste Punkt der Box weiter auseinander. Zu enge
+          Grenzen würden Schatten am Rand abschneiden.
         */
-        shadow-camera-near={ABSTAND - 45}
-        shadow-camera-far={ABSTAND + 70}
+        shadow-camera-near={ABSTAND - 70}
+        shadow-camera-far={ABSTAND + 90}
       />
       {/* Unsichtbares Hilfsobjekt, auf das das Licht zeigt */}
       <object3D ref={zielObjekt} />

@@ -1,7 +1,15 @@
 import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { CuboidCollider, CylinderCollider, RigidBody } from '@react-three/rapier';
-import { Euler, Group, Matrix4, Quaternion, Vector3 } from 'three';
+import {
+  Color,
+  Euler,
+  Group,
+  Matrix4,
+  Quaternion,
+  SRGBColorSpace,
+  Vector3,
+} from 'three';
 import { WELT, hoeheBei, steigungBei, type Terraindaten } from './heightmap';
 import { bebautesGebiet, dorfOrt, windmuehleOrt } from './orte';
 import type { Strassennetz } from './strassennetz';
@@ -162,13 +170,52 @@ export function Deko({ terrain, netz, strecke }: DekoProps) {
   const felsenMatrizen = useMemo(() => matrizen(felsen, (p) => p.groesse * 0.35), [felsen]);
   const buschMatrizen = useMemo(() => matrizen(buesche, (p) => p.groesse * 0.4), [buesche]);
 
+  /*
+    Eine eigene Farbe je Instanz – derselbe Trick wie bei den Baumkronen.
+
+    `setColorAt` kostet keinen zusätzlichen Zeichenbefehl. Alle Felsen in
+    exakt demselben Grau (und alle Büsche in exakt demselben Grün) sehen
+    dagegen aus wie gestempelt. Weil die Farbe mit der Materialfarbe
+    multipliziert wird, sind beide Materialien unten weiß.
+  */
+  const felsenFarben = useMemo(() => {
+    const rnd = zufall(DEKO.keim + 401);
+    const c = new Color();
+    return felsen.map(() => {
+      /*
+        Graubraun mit wenig Sättigung, aber deutlich verschiedener Helligkeit.
+        `SRGBColorSpace` nicht vergessen – ohne die Angabe rechnet three.js
+        die Werte linear und alles wird deutlich zu hell.
+      */
+      c.setHSL(0.09 + rnd() * 0.04, 0.04 + rnd() * 0.07, 0.36 + rnd() * 0.18, SRGBColorSpace);
+      return c.clone();
+    });
+  }, [felsen]);
+
+  const buschFarben = useMemo(() => {
+    const rnd = zufall(DEKO.keim + 507);
+    const c = new Color();
+    return buesche.map(() => {
+      c.setHSL(0.22 + rnd() * 0.09, 0.3 + rnd() * 0.26, 0.16 + rnd() * 0.12, SRGBColorSpace);
+      return c.clone();
+    });
+  }, [buesche]);
+
   /** Ein kleines Dorf. Der Platz kommt aus orte.ts, damit die Karte denselben kennt. */
   const dorf = useMemo(() => {
     const rnd = zufall(DEKO.keim + 31);
     const mitte = dorfOrt(terrain, netz);
 
-    const haeuser: (Platz & { breite: number; tiefe: number; hoehe: number; farbe: string })[] = [];
+    const haeuser: (Platz & {
+      breite: number;
+      tiefe: number;
+      hoehe: number;
+      farbe: string;
+      dach: string;
+    })[] = [];
     const farben = ['#d8cdb8', '#c9b79b', '#b8a68d', '#cdbfa6', '#a89478'];
+    /* Ziegeldächer sind nie alle gleich – jeder Brand fällt anders aus. */
+    const dachfarben = ['#8c4232', '#7a3b2e', '#9a4f34', '#6d4034', '#87462f'];
     for (let i = 0; i < 8; i++) {
       const winkel = (i / 8) * Math.PI * 2 + rnd() * 0.5;
       const radius = 16 + rnd() * 26;
@@ -185,6 +232,7 @@ export function Deko({ terrain, netz, strecke }: DekoProps) {
         tiefe: 6 + rnd() * 4,
         hoehe: 3 + rnd() * 1.6,
         farbe: farben[Math.floor(rnd() * farben.length)],
+        dach: dachfarben[Math.floor(rnd() * dachfarben.length)],
       });
     }
     return { mitte, haeuser };
@@ -204,14 +252,18 @@ export function Deko({ terrain, netz, strecke }: DekoProps) {
         receiveShadow
         ref={(mesh) => {
           if (!mesh) return;
-          felsenMatrizen.forEach((m, i) => mesh.setMatrixAt(i, m));
+          felsenMatrizen.forEach((m, i) => {
+            mesh.setMatrixAt(i, m);
+            mesh.setColorAt(i, felsenFarben[i]);
+          });
           mesh.instanceMatrix.needsUpdate = true;
+          if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
           mesh.computeBoundingSphere();
         }}
       >
         {/* Wenige Flächen, damit die Felsen kantig wirken statt wie Kugeln */}
         <dodecahedronGeometry args={[0.8, 0]} />
-        <meshStandardMaterial color="#7c7a74" roughness={0.95} metalness={0.02} flatShading />
+        <meshStandardMaterial color="#ffffff" roughness={0.95} metalness={0.02} flatShading />
       </instancedMesh>
 
       {/* ---------- Büsche ---------- */}
@@ -220,51 +272,125 @@ export function Deko({ terrain, netz, strecke }: DekoProps) {
         castShadow
         ref={(mesh) => {
           if (!mesh) return;
-          buschMatrizen.forEach((m, i) => mesh.setMatrixAt(i, m));
+          buschMatrizen.forEach((m, i) => {
+            mesh.setMatrixAt(i, m);
+            mesh.setColorAt(i, buschFarben[i]);
+          });
           mesh.instanceMatrix.needsUpdate = true;
+          if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
           mesh.computeBoundingSphere();
         }}
       >
         <icosahedronGeometry args={[0.7, 0]} />
-        <meshStandardMaterial color="#3f5c2c" roughness={0.95} flatShading />
+        <meshStandardMaterial color="#ffffff" roughness={0.95} flatShading />
       </instancedMesh>
 
       {/* ---------- Dorf ---------- */}
-      {dorf.haeuser.map((h, i) => (
-        <group key={i} position={[h.x, h.y, h.z]} rotation={[0, h.drehung, 0]}>
-          {/* Wände */}
-          <mesh position={[0, h.hoehe / 2, 0]} castShadow receiveShadow>
-            <boxGeometry args={[h.breite, h.hoehe, h.tiefe]} />
-            <meshStandardMaterial color={h.farbe} roughness={0.85} />
-          </mesh>
-          {/* Satteldach: ein flach gedrücktes Prisma aus einem Zylinder mit 3 Seiten */}
-          <mesh
-            position={[0, h.hoehe + h.breite * 0.22, 0]}
-            rotation={[0, Math.PI / 4, 0]}
-            castShadow
-          >
-            <cylinderGeometry args={[h.breite * 0.78, h.breite * 0.78, h.tiefe * 1.06, 4, 1]} />
-            <meshStandardMaterial color="#7a3b2e" roughness={0.9} flatShading />
-          </mesh>
-          {/* Schornstein */}
-          <mesh position={[h.breite * 0.26, h.hoehe + h.breite * 0.42, h.tiefe * 0.2]} castShadow>
-            <boxGeometry args={[0.5, 1.1, 0.5]} />
-            <meshStandardMaterial color="#6b5a4e" roughness={0.9} />
-          </mesh>
-          {/* Fenster als leuchtende Flächen – abends sieht man das Dorf von weitem */}
-          {[-1, 1].map((seite) => (
-            <mesh key={seite} position={[seite * (h.breite / 2 + 0.01), h.hoehe * 0.55, 0]}>
-              <boxGeometry args={[0.05, 0.8, h.tiefe * 0.45]} />
-              <meshStandardMaterial
-                color="#ffdca0"
-                emissive="#ffcf80"
-                emissiveIntensity={0.7}
-                toneMapped={false}
-              />
+      {dorf.haeuser.map((h, i) => {
+        /*
+          Das Dach steht ringsum etwas über – erst dadurch wirkt es wie ein
+          Dach und nicht wie ein aufgesetzter Deckel.
+        */
+        const dachRadius = h.breite / 2 + 0.4;
+        const dachLaenge = h.tiefe + 0.8;
+        return (
+          <group key={i} position={[h.x, h.y, h.z]} rotation={[0, h.drehung, 0]}>
+            {/*
+              Steinsockel: bricht die Wandfläche unten auf und setzt das Haus
+              sichtbar auf den Boden, statt es dort einfach enden zu lassen.
+            */}
+            <mesh position={[0, 0.3, 0]} castShadow receiveShadow>
+              <boxGeometry args={[h.breite + 0.16, 0.6, h.tiefe + 0.16]} />
+              <meshStandardMaterial color="#8a8175" roughness={0.95} />
             </mesh>
-          ))}
-        </group>
-      ))}
+
+            {/* Wände */}
+            <mesh position={[0, h.hoehe / 2, 0]} castShadow receiveShadow>
+              <boxGeometry args={[h.breite, h.hoehe, h.tiefe]} />
+              <meshStandardMaterial color={h.farbe} roughness={0.88} />
+            </mesh>
+
+            {/*
+              Satteldach: ein Vierkant-Prisma, dessen Achse waagerecht liegt.
+
+              Bei einem Zylinder ist die Achse immer die Y-Achse. Vorher stand
+              das Prisma deshalb hochkant und war rund 8 m hoch – von außen
+              sah das aus wie ein etwas breiterer Kasten, nicht wie ein Dach.
+              rotation X = 90° dreht die Achse von Y nach Z, der First läuft
+              also in die Tiefe des Hauses. Von den vier Ecken zeigt dann eine
+              nach oben (der First) und eine nach unten (steckt in den Wänden).
+            */}
+            <mesh
+              position={[0, h.hoehe, 0]}
+              rotation={[Math.PI / 2, 0, 0]}
+              castShadow
+              receiveShadow
+            >
+              <cylinderGeometry args={[dachRadius, dachRadius, dachLaenge, 4, 1]} />
+              <meshStandardMaterial color={h.dach} roughness={0.85} flatShading />
+            </mesh>
+
+            {/*
+              Dunkler Dachrand entlang der Traufe. Diese Trennlinie zwischen
+              Wand und Dach fehlt sonst komplett, und beides fließt ineinander.
+            */}
+            {[-1, 1].map((seite) => (
+              <mesh
+                key={seite}
+                position={[seite * dachRadius * 0.98, h.hoehe - 0.06, 0]}
+                castShadow
+              >
+                <boxGeometry args={[0.14, 0.16, dachLaenge]} />
+                <meshStandardMaterial color="#4b3a30" roughness={0.9} />
+              </mesh>
+            ))}
+
+            {/* Schornstein, neben dem First statt mittendrin */}
+            <mesh
+              position={[h.breite * 0.24, h.hoehe + dachRadius * 0.75, h.tiefe * 0.22]}
+              castShadow
+            >
+              <boxGeometry args={[0.55, 1.4, 0.55]} />
+              <meshStandardMaterial color="#7a6355" roughness={0.92} />
+            </mesh>
+
+            {/* Tür an der Vorderseite */}
+            <mesh position={[0, 1.05, h.tiefe / 2 + 0.03]}>
+              <boxGeometry args={[0.9, 2.1, 0.08]} />
+              <meshStandardMaterial color="#5a3b28" roughness={0.85} />
+            </mesh>
+
+            {/*
+              Fenster als einzelne Rechtecke mit dunklem Rahmen statt eines
+              durchgehenden Streifens. Vier Fenster pro Haus reichen: Sobald
+              das Auge eine Fensterordnung erkennt, liest es das Objekt als
+              Haus und nicht mehr als Kasten.
+            */}
+            {[-1, 1].map((seite) =>
+              [-h.tiefe * 0.22, h.tiefe * 0.22].map((z, k) => (
+                <group
+                  key={`${seite}-${k}`}
+                  position={[seite * (h.breite / 2 + 0.02), h.hoehe * 0.55, z]}
+                >
+                  <mesh>
+                    <boxGeometry args={[0.06, 1.15, 0.95]} />
+                    <meshStandardMaterial color="#4a3a2e" roughness={0.9} />
+                  </mesh>
+                  <mesh position={[seite * 0.02, 0, 0]}>
+                    <boxGeometry args={[0.05, 0.9, 0.7]} />
+                    <meshStandardMaterial
+                      color="#ffdca0"
+                      emissive="#ffcf80"
+                      emissiveIntensity={0.7}
+                      toneMapped={false}
+                    />
+                  </mesh>
+                </group>
+              )),
+            )}
+          </group>
+        );
+      })}
 
       {/*
         Kollision nur für die Häuser. Felsen und Büsche bleiben ohne –

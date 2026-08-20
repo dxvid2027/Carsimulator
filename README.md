@@ -184,9 +184,38 @@ garantiert genauso aus wie das Logo im Spiel.
   Rädern; bleibt es doch liegen, setzt es sich nach 3 s selbst zurück.
 - **Weiche Verfolgerkamera** mit Nachlauf, Abstandsbegrenzung und
   tempoabhängigem Sichtfeld, vier Perspektiven.
-- **Grafik**: HDRI-Umgebungslicht, prozeduraler Himmel, Umgebungsverschattung
-  (N8AO), Bloom, ACES-Tonwertkurve, Vignette und SMAA-Kantenglättung.
+- **Grafik**: tief stehende Abendsonne mit langen Schatten, warmes Sonnenlicht
+  gegen blaue Schatten, exponentieller Dunst, HDRI-Umgebungslicht,
+  prozeduraler Himmel, Umgebungsverschattung (N8AO), Bloom, ACES-Tonwertkurve,
+  Farbabstimmung, Vignette und SMAA-Kantenglättung. Siehe „Wie die Grafik
+  eingestellt ist".
 - **Touch-Bedienung** für iPad und Handy, inklusive analogem Lenken.
+
+## Wie die Grafik eingestellt ist
+
+Ein paar wenige Werte bestimmen den Gesamteindruck. Sie stehen absichtlich
+verstreut in den Dateien, zu denen sie gehören – hier die Übersicht.
+
+| Was | Wo | Wert | Wirkt sich aus auf |
+|---|---|---|---|
+| Sonnenstand | `SONNE` in `world/SunLight.tsx` | ca. 22° über dem Horizont | Länge und Richtung aller Schatten |
+| Sonnenfarbe/-stärke | `directionalLight` in `SunLight.tsx` | `#ffdcaf`, 2.5 | Wärme und Helligkeit des Bildes |
+| Himmelslicht | `hemisphereLight` in `Scene.tsx` | `#86b2ff`, 0.55 | Farbe der Schattenseiten |
+| Spiegelungen | `environmentIntensity` in `Scene.tsx` | 0.95 | Glanz auf Lack, Glas, Chrom |
+| Dunst | `fogExp2` in `Scene.tsx` | Dichte 0.0013 | wie weit man sieht |
+| Farbabstimmung | `BrightnessContrast` / `HueSaturation` in `Scene.tsx` | +0.14 / +0.2 | Biss und Farbkraft |
+
+**Der wichtigste Gedanke dahinter:** warmes Sonnenlicht gegen kalte Schatten.
+Nicht mehr Details machen ein Bild schön, sondern dieser Farbkontrast. Deshalb
+ist die Sonne warm (`#ffdcaf`) und das Himmelslicht kräftig blau (`#86b2ff`).
+
+**Wenn etwas nicht gefällt**, immer nur *einen* Wert ändern – sonst weiß man
+hinterher nicht, was gewirkt hat:
+
+- zu orange → Sonnenfarbe Richtung `#ffeed6`
+- zu dunstig → Nebeldichte auf 0.0009
+- zu knallig → `saturation` auf 0.1
+- zu hell → `intensity` des Sonnenlichts senken
 
 ## Ordnerstruktur
 

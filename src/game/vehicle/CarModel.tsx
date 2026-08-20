@@ -23,6 +23,29 @@ const GUMMI = '#111214';
 const CHROM = '#b9bcc0';
 const FELGE = '#26292d';
 
+/**
+ * Autolack als eigene Komponente, damit alle Karosserieteile garantiert
+ * identisch aussehen. Nichts fällt so auf wie eine Motorhaube, die anders
+ * glänzt als die Tür daneben.
+ *
+ * `clearcoat` ist der Klarlack über der Farbe: eine dünne, sehr glatte
+ * Schicht, die scharf spiegelt. Deshalb ist `metalness` niedrig – Lack ist
+ * kein Metall, der Glanz kommt von der Schicht darüber. Genau das war der
+ * Grund, warum das Auto vorher wie Plastik aussah.
+ */
+function Lack({ farbe = LACK }: { farbe?: string }) {
+  return (
+    <meshPhysicalMaterial
+      color={farbe}
+      metalness={0.15}
+      roughness={0.35}
+      clearcoat={1}
+      clearcoatRoughness={0.12}
+      envMapIntensity={1.0}
+    />
+  );
+}
+
 export function CarModel() {
   const { x: hx, y: hy, z: hz } = FAHRZEUG.halbeGroesse;
   const { radstand, radius } = FAHRZEUG.rad;
@@ -43,13 +66,18 @@ export function CarModel() {
       {/* ---------- Untere Karosserie ---------- */}
       <RoundedBox
         args={[hx * 2, hy * 1.42, hz * 2]}
-        radius={0.07}
-        smoothness={2}
+        /*
+          Größerer Rundungsradius: Der Übergang von der Seite zum Dach fängt
+          jetzt ein Glanzlicht ein. Genau diese Lichtkante entlang der
+          Karosserie unterscheidet ein Auto von einem Quader.
+        */
+        radius={0.16}
+        smoothness={4}
         position={[0, -hy * 0.29, 0]}
         castShadow
         receiveShadow
       >
-        <meshStandardMaterial color={LACK} metalness={0.45} roughness={0.42} />
+        <Lack />
       </RoundedBox>
 
       {/* Motorhaube – lang und flach, typisch für diese Limousinen */}
@@ -60,7 +88,7 @@ export function CarModel() {
         position={[0, guertellinie - 0.02, hz * 0.58]}
         castShadow
       >
-        <meshStandardMaterial color={LACK} metalness={0.45} roughness={0.4} />
+        <Lack />
       </RoundedBox>
 
       {/* Kofferraumdeckel */}
@@ -71,26 +99,37 @@ export function CarModel() {
         position={[0, guertellinie - 0.02, -hz * 0.74]}
         castShadow
       >
-        <meshStandardMaterial color={LACK} metalness={0.45} roughness={0.4} />
+        <Lack />
       </RoundedBox>
 
       {/* ---------- Dachaufbau ---------- */}
       <RoundedBox
         args={[hx * 1.72, dachHoehe, kabineLaenge]}
-        radius={0.06}
-        smoothness={2}
+        radius={0.13}
+        smoothness={4}
         position={[0, dachMitte, kabineZ]}
         castShadow
         receiveShadow
       >
-        <meshStandardMaterial color={LACK} metalness={0.45} roughness={0.42} />
+        <Lack />
       </RoundedBox>
 
       {/* Fensterband – ein durchgehender dunkler Ring wirkt wie Verglasung */}
       {[-1, 1].map((seite) => (
         <mesh key={seite} position={[seite * hx * 0.87, dachMitte + 0.03, kabineZ]}>
           <boxGeometry args={[0.03, dachHoehe * 0.6, kabineLaenge * 0.9]} />
-          <meshStandardMaterial color={GLAS} metalness={0.3} roughness={0.06} />
+{/*
+            Hohe metalness und sehr glatt: Die Scheibe spiegelt Himmel und
+            Umgebung, statt nur dunkel zu sein. Echte Durchsichtigkeit
+            (transmission) wäre auf dem iPad viel zu teuer – von außen sieht
+            gespiegelt ohnehin besser aus.
+          */}
+          <meshStandardMaterial
+            color={GLAS}
+            metalness={0.9}
+            roughness={0.04}
+            envMapIntensity={1.6}
+          />
         </mesh>
       ))}
       {/* Windschutzscheibe, leicht geneigt */}
@@ -100,7 +139,12 @@ export function CarModel() {
         castShadow
       >
         <boxGeometry args={[hx * 1.6, dachHoehe * 0.82, 0.05]} />
-        <meshStandardMaterial color={GLAS} metalness={0.3} roughness={0.05} />
+        <meshStandardMaterial
+          color={GLAS}
+          metalness={0.9}
+          roughness={0.04}
+          envMapIntensity={1.6}
+        />
       </mesh>
       {/* Heckscheibe */}
       <mesh
@@ -109,7 +153,12 @@ export function CarModel() {
         castShadow
       >
         <boxGeometry args={[hx * 1.58, dachHoehe * 0.78, 0.05]} />
-        <meshStandardMaterial color={GLAS} metalness={0.3} roughness={0.05} />
+        <meshStandardMaterial
+          color={GLAS}
+          metalness={0.9}
+          roughness={0.04}
+          envMapIntensity={1.6}
+        />
       </mesh>
 
       {/* ---------- Dachträger mit Reserverad ---------- */}
@@ -175,7 +224,7 @@ export function CarModel() {
       {/* Kühlergrill mit Chromrahmen */}
       <mesh position={[0, guertellinie - 0.19, hz - 0.02]} castShadow>
         <boxGeometry args={[hx * 0.92, 0.3, 0.08]} />
-        <meshStandardMaterial color={CHROM} metalness={0.95} roughness={0.18} />
+        <meshStandardMaterial color={CHROM} metalness={1} roughness={0.12} envMapIntensity={2} />
       </mesh>
       <mesh position={[0, guertellinie - 0.19, hz + 0.02]}>
         <boxGeometry args={[hx * 0.82, 0.24, 0.04]} />
@@ -236,7 +285,7 @@ export function CarModel() {
           castShadow
         >
           <boxGeometry args={[0.18, 0.1, 0.09]} />
-          <meshStandardMaterial color={LACK_DUNKEL} metalness={0.45} roughness={0.4} />
+          <Lack farbe={LACK_DUNKEL} />
         </mesh>
       ))}
 

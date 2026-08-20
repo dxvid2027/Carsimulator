@@ -156,6 +156,38 @@ function macheBodenTexturen() {
   return { farbe, normal };
 }
 
+/**
+ * Wiederholbares Rauschen: dieselbe Weltposition liefert immer denselben Wert.
+ *
+ * Kein `Math.random()` – der Boden muss bei jedem Laden gleich aussehen, und
+ * benachbarte Eckpunkte brauchen ähnliche Werte, sonst wird es Bildrauschen
+ * statt Flecken.
+ */
+function hash2(x: number, z: number) {
+  const s = Math.sin(x * 127.1 + z * 311.7) * 43758.5453;
+  return s - Math.floor(s);
+}
+
+/**
+ * Weich verlaufendes Rauschen mit einer bestimmten Wellenlänge in Metern.
+ * Zwischen den Gitterpunkten wird geglättet – ohne das gäbe es harte
+ * Farbkanten im Boden.
+ */
+function rauschen(x: number, z: number, wellenlaenge: number) {
+  const fx = x / wellenlaenge;
+  const fz = z / wellenlaenge;
+  const x0 = Math.floor(fx);
+  const z0 = Math.floor(fz);
+  // Glättungskurve 3t² - 2t³: startet und endet waagerecht
+  const tx = fx - x0;
+  const tz = fz - z0;
+  const sx = tx * tx * (3 - 2 * tx);
+  const sz = tz * tz * (3 - 2 * tz);
+  const oben = hash2(x0, z0) + (hash2(x0 + 1, z0) - hash2(x0, z0)) * sx;
+  const unten = hash2(x0, z0 + 1) + (hash2(x0 + 1, z0 + 1) - hash2(x0, z0 + 1)) * sx;
+  return oben + (unten - oben) * sz;
+}
+
 /** Farben nach Höhe und Steilheit. */
 const FARBEN = {
   /** Feuchte Senken: dunkles, sattes Grün. */
@@ -170,6 +202,10 @@ const FARBEN = {
   gipfel: new Color('#948a6c'),
   /** Erde, wo Gras nicht mehr wächst. */
   erde: new Color('#6b5439'),
+  /** Trockene, ausgeblichene Stellen. */
+  trocken: new Color('#8d8a52'),
+  /** Feuchte, satte Stellen. */
+  satt: new Color('#31501e'),
 };
 
 /**
@@ -272,6 +308,47 @@ function baueKachel(daten: Terraindaten, kachelX: number, kachelZ: number) {
     } else {
       farbe.copy(farbe).lerp(FARBEN.erde, 0.55).lerp(FARBEN.fels, (steil - 0.5) / 0.5);
     }
+
+    /*
+      ----- Flecken -----
+
+      Höhe und Steilheit ändern sich über die Landschaft nur ganz allmählich –
+      deshalb entstanden große, gleichmäßige Farbflächen. Echte Wiesen sind
+      fleckig: feuchte Senken sattgrün, trockene Kuppen gelblich.
+
+      Zwei Rauschstufen übereinander: eine grobe für ganze Wiesenstücke
+      (ca. 85 m), eine feinere für Abwechslung im Nahbereich (ca. 22 m). Eine
+      einzige Stufe sieht immer nach Muster aus.
+    */
+    const grob = rauschen(weltX, weltZ, 85);
+    const fein = rauschen(weltX + 500, weltZ - 300, 22);
+    const fleck = grob * 0.7 + fein * 0.3;
+    if (fleck > 0.55) {
+      farbe.lerp(FARBEN.trocken, (fleck - 0.55) * 1.5);
+    } else if (fleck < 0.45) {
+      farbe.lerp(FARBEN.satt, (0.45 - fleck) * 1.3);
+    }
+
+    /*
+      ----- Mulden-Verdunklung -----
+
+      Vergleicht die Höhe mit der Umgebung in etwa 12 m Abstand. Liegt ein
+      Punkt tiefer als seine Nachbarn, ist er eine Senke – dort kommt weniger
+      Himmelslicht an, also wird er dunkler. Kuppen bleiben hell.
+
+      Das ersetzt die fehlenden Geländeschatten: Es wirkt über die ganze Karte,
+      auch weit außerhalb des kleinen Schattenbereichs der Sonne, und kostet
+      im Betrieb nichts, weil es einmal beim Aufbau berechnet wird.
+    */
+    const w = Math.max(1, Math.round(12 / ZELLE));
+    const umgebung =
+      (hoeheAn(ixK - w, izK) +
+        hoeheAn(ixK + w, izK) +
+        hoeheAn(ixK, izK - w) +
+        hoeheAn(ixK, izK + w)) /
+      4;
+    const mulde = Math.max(-1, Math.min(1, (h - umgebung) / 6));
+    farbe.multiplyScalar(0.84 + mulde * 0.16);
 
     farben[i * 3] = farbe.r;
     farben[i * 3 + 1] = farbe.g;

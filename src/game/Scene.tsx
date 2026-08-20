@@ -4,7 +4,9 @@ import { Environment, Sky } from '@react-three/drei';
 import { Physics } from '@react-three/rapier';
 import {
   Bloom,
+  BrightnessContrast,
   EffectComposer,
+  HueSaturation,
   N8AO,
   SMAA,
   ToneMapping,
@@ -227,7 +229,13 @@ export function Scene({ pausiert, sparsam, onWeltFertig }: SceneProps) {
   return (
     <>
       {/* ---------- Beleuchtung ---------- */}
-      <hemisphereLight args={['#bcd7ff', '#4a4535', 0.42]} />
+      {/*
+        Himmelslicht: füllt die Schatten auf. Kräftiges Blau, weil die Sonne
+        jetzt warm ist – warmes Licht, kalte Schatten. Ohne das wären die
+        Schattenseiten einfach nur dunkelgrau. Dieser Farbkontrast ist der
+        Grund, warum schöne Bilder schön aussehen, nicht mehr Details.
+      */}
+      <hemisphereLight args={['#86b2ff', '#3e3a29', 0.55]} />
       <SunLight ziel={autoRef} />
 
       {/*
@@ -240,7 +248,11 @@ export function Scene({ pausiert, sparsam, onWeltFertig }: SceneProps) {
         Für Spiegelungen und Umgebungslicht ist es dagegen genau richtig.
         Siehe public/ASSETS.md.
       */}
-      <Environment files="/venice_sunset_1k.hdr" environmentIntensity={0.8} />
+      {/*
+        Die Stärke bestimmt, wie viel Umgebung sich in Lack und Glas spiegelt.
+        Zu niedrig, und das Auto wirkt matt und tot.
+      */}
+      <Environment files="/venice_sunset_1k.hdr" environmentIntensity={0.95} />
 
       {/*
         Der sichtbare Himmel wird stattdessen berechnet (Streuung des
@@ -251,18 +263,39 @@ export function Scene({ pausiert, sparsam, onWeltFertig }: SceneProps) {
       */}
       <Sky
         sunPosition={[SONNE.x, SONNE.y, SONNE.z]}
-        turbidity={2.6}
-        rayleigh={2.4}
-        mieCoefficient={0.004}
-        mieDirectionalG={0.8}
+        /*
+          turbidity: wie "staubig" die Luft ist – höher ergibt einen wärmeren,
+          satteren Horizont statt eines weißen Bandes.
+          rayleigh: bläuliche Streuung. Kleiner als früher, sonst überzieht ein
+          milchiger Schleier den ganzen Himmel – genau das machte den Horizont
+          weiß.
+          mie + mieDirectionalG: der Lichthof direkt um die Sonne. Höher
+          gedreht, damit der Glanz dort sitzt, wo die Sonne steht, statt sich
+          über die ganze Kuppel zu verteilen.
+        */
+        turbidity={5}
+        rayleigh={1.3}
+        mieCoefficient={0.007}
+        mieDirectionalG={0.88}
         distance={4000}
       />
 
       <Sonne />
       <OrteFuerEntwicklung terrain={terrain} netz={netz} strecke={strecke} />
 
-      {/* Nebel in der Farbe des Horizonts, damit die Kartenkante verschwimmt */}
-      <fog attach="fog" args={['#c8d6e2', 340, 1250]} />
+      {/*
+        Exponentieller Dunst statt linearem Nebel.
+
+        Linearer Nebel blendet über die ganze Strecke gleichmäßig ein – deshalb
+        war schon der Mittelgrund milchig. Echter Dunst wächst mit dem Quadrat
+        der Entfernung: die ersten 150 m sind fast klar, ab 400 m wird es weich,
+        am Kartenrand verschwindet alles. Genau das macht fogExp2.
+
+        Die Farbe ist ein warmes Hellgrau, passend zum Horizont der tiefen
+        Sonne. Passt sie nicht zum Himmel, sieht man eine Kante zwischen
+        Gelände und Himmel.
+      */}
+      <fogExp2 attach="fog" args={['#cbb99e', 0.0013]} />
 
       {/* ---------- Physik und Welt ---------- */}
       {/*
@@ -305,7 +338,13 @@ export function Scene({ pausiert, sparsam, onWeltFertig }: SceneProps) {
       <EffectComposer multisampling={0} enableNormalPass>
         {wenigEffekte ? (
           <>
+            {/*
+              Farbabstimmung kostet fast nichts und ist der billigste Weg zu
+              einem satteren Bild – die bekommt auch das iPad.
+            */}
             <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
+            <BrightnessContrast brightness={0.0} contrast={0.12} />
+            <HueSaturation saturation={0.18} />
             <SMAA />
           </>
         ) : (
@@ -313,13 +352,29 @@ export function Scene({ pausiert, sparsam, onWeltFertig }: SceneProps) {
             {/* N8AO: Umgebungsverschattung – setzt Auto, Bäume und Planken
                 sichtbar auf den Boden statt sie schweben zu lassen */}
             <N8AO aoRadius={2.2} intensity={2.4} distanceFalloff={0.8} halfRes />
+            {/*
+              Bloom etwas kräftiger und mit niedrigerer Schwelle: Bei tiefer
+              Sonne sollen Lackglanzlichter, Scheinwerfer und die Sonnenscheibe
+              selbst überstrahlen. Das ist der "Glanz", der bei Mittagslicht
+              gefehlt hat.
+            */}
             <Bloom
-              intensity={0.42}
-              luminanceThreshold={0.78}
-              luminanceSmoothing={0.28}
+              intensity={0.55}
+              luminanceThreshold={0.7}
+              luminanceSmoothing={0.3}
               mipmapBlur
             />
             <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
+            {/*
+              Kontrast und Sättigung ganz am Schluss.
+
+              ACES bildet den hellen Bereich weich ab – das schützt vor
+              ausgefressenen Stellen, nimmt dem Bild aber Biss. Die beiden
+              Regler holen ihn zurück. Das ist derselbe Schritt, den echte
+              Spiele "Color Grading" nennen.
+            */}
+            <BrightnessContrast brightness={0.0} contrast={0.14} />
+            <HueSaturation saturation={0.2} />
             <Vignette offset={0.28} darkness={0.42} />
             <SMAA />
           </>
