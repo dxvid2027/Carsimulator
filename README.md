@@ -86,26 +86,29 @@ entlang – man soll es beim Herumfahren entdecken.
 Pause steht die Physik still. Wechselst du den Tab oder legst das Gerät weg,
 pausiert das Spiel von selbst.
 
-## Ins Netz stellen (Cloudflare Pages)
+## Ins Netz stellen (Cloudflare)
 
 Praktisch, wenn du kein Terminal hast – zum Beispiel auf dem iPad.
 
-1. Auf [dash.cloudflare.com](https://dash.cloudflare.com) → **Workers & Pages**
-   → **Create** → **Pages** → **Connect to Git**
-2. GitHub verbinden und dieses Repository auswählen
-3. Einstellungen:
-   - **Production branch:** `claude/3d-open-world-racing-game-y5q7qt`
+Das Projekt läuft bei Cloudflare als **Worker mit statischen Dateien**. Der
+Unterschied zu einem Pages-Projekt ist wichtig: Ein Pages-Projekt führt den
+Ordner `functions/` aus, ein Worker nicht – dort ist `worker/index.ts` der
+Einstiegspunkt, und `wrangler.jsonc` bestimmt die Einstellungen.
+
+1. Auf [dash.cloudflare.com](https://dash.cloudflare.com) → **Compute
+   (Workers & Pages)** → **Create** → Repository verbinden
+2. Einstellungen:
+   - **Branch:** `claude/3d-open-world-racing-game-y5q7qt`
      (dieses Repo hat keinen `main`-Branch – der Branch muss von Hand
      ausgewählt werden, sonst findet Cloudflare nichts zum Bauen)
    - **Build command:** `npm run build`
-   - **Build output directory:** `dist`
-   - Framework preset: *None*
-4. **Save and Deploy**
-5. Danach noch den KV-Speicher für die Passwortsperre anlegen – siehe
-   „Passwortsperre" weiter unten. Ohne ihn zeigt die Seite nur eine Anleitung.
+   - **Deploy command:** `npx wrangler deploy`
+3. Den KV-Speicher für die Passwortsperre anlegen und seine ID in
+   `wrangler.jsonc` eintragen – siehe „Passwortsperre" weiter unten. Ohne ihn
+   zeigt die Seite nur eine Anleitung.
+4. Neu deployen
 
 Die Node-Version steht in `.node-version` (22), die muss man nicht extra setzen.
-Nach ein bis zwei Minuten gibt es eine Adresse wie `carsimulator.pages.dev`.
 Jeder weitere Push auf den Branch baut die Seite automatisch neu.
 
 ## Passwortsperre
@@ -129,45 +132,57 @@ Ein Passwort, das nur im Browser geprüft wird, ist keine Sperre: Wer die Seite
 umgehen. Außerdem müsste jedes Gerät sein eigenes Passwort festlegen – „der
 Erste bestimmt es" gäbe es dann gar nicht.
 
-Deshalb prüft eine **Cloudflare Pages Function** (`functions/_middleware.ts`)
-jede einzelne Anfrage, und das Passwort liegt in einem KV-Speicher. Gespeichert
+Deshalb prüft ein **Cloudflare Worker** (`worker/index.ts`) jede einzelne
+Anfrage, und das Passwort liegt in einem KV-Speicher. Gespeichert
 wird nie das Passwort selbst, sondern nur ein Hash (PBKDF2 mit Salz) – daraus
 lässt es sich nicht zurückrechnen. Der Browser bekommt ein unterschriebenes
 Ticket als Cookie.
 
 **Einmal einrichten (Cloudflare)**
 
-1. **Storage & Databases → KV → Create namespace**, Name z. B.
+1. **Storage & Databases → KV → Create Instance**, Name z. B.
    `carsimulator-passwort`
-2. **Workers & Pages → dein Projekt → Settings → Bindings → Add → KV namespace**
-3. Variable name: `PASSWORT` — Namespace: der eben erstellte
-4. Speichern und neu deployen
+2. Die **ID** des Namespace kopieren (steht in der Übersicht daneben)
+3. Diese ID in `wrangler.jsonc` bei `kv_namespaces → id` eintragen und pushen
 
-Fehlt die Bindung, zeigt die Seite statt des Spiels genau diese Anleitung –
+Der dritte Schritt ist der entscheidende: Bei einem über Git verbundenen
+Worker ist `wrangler.jsonc` maßgeblich. Eine Bindung, die nur im Dashboard
+angelegt wurde, verschwindet beim nächsten Deployment wieder.
+
+Fehlt die Bindung, zeigt die Seite statt des Spiels eine kurze Anleitung –
 sie gibt das Spiel **nicht** ersatzweise frei.
+
+**Warum jede Datei geprüft wird**
+
+Normalerweise liefert Cloudflare eine vorhandene Datei sofort aus, ohne den
+Worker zu fragen. Die Spieldateien wären damit ohne Passwort abrufbar.
+Deshalb steht in `wrangler.jsonc` `"run_worker_first": true` – erst läuft der
+Worker, dann wird entschieden, ob die Datei herausgeht.
 
 **Passwort vergessen?** In Cloudflare den KV-Namespace öffnen und den Eintrag
 `passwort` löschen. Der nächste Besucher legt dann ein neues fest.
 
 **Örtlich testen**
 
-`npm run dev` startet nur das Spiel – Cloudflare-Functions laufen dort nicht,
-die Sperre ist also nicht dabei. Zum Testen der Sperre:
+`npm run dev` startet nur das Spiel – der Worker läuft dort nicht, die Sperre
+ist also nicht dabei. Zum Testen der Sperre:
 
 ```bash
 npm run sperre
 ```
 
-Das baut die Seite und startet sie mit einem lokalen KV-Speicher unter
-http://localhost:8788. Zum Zurücksetzen des Test-Passworts den Ordner
-`.wrangler` löschen.
+Das baut die Seite und startet den Worker mit einem lokalen KV-Speicher unter
+http://localhost:8788. Der Speicher ist dabei nur örtlich – die ID in
+`wrangler.jsonc` spielt keine Rolle. Zum Zurücksetzen des Test-Passworts den
+Ordner `.wrangler` löschen.
 
 | Datei | Aufgabe |
 |---|---|
-| `functions/_middleware.ts` | Türsteher, läuft bei jeder Anfrage |
-| `functions/api/passwort.ts` | Passwort setzen und prüfen |
+| `worker/index.ts` | Türsteher, läuft bei jeder Anfrage |
+| `zutritt/api.ts` | Passwort setzen und prüfen |
 | `zutritt/gemeinsam.ts` | Hash, Ticket, Cookie |
 | `zutritt/anmeldeseite.ts` | Die Anmeldeseite als HTML |
+| `wrangler.jsonc` | Worker-Einstellungen und KV-Bindung |
 
 ## Zum Home-Bildschirm hinzufügen (iPhone, iPad)
 
@@ -333,12 +348,13 @@ src/
       RaceHud.tsx           Einladung, Countdown, Rundenzeiten, Ergebnis
       Minimap.tsx           Karte oben rechts (2D-Canvas, nicht 3D)
       Logo.tsx              Spiel-Logo als SVG
-functions/
-  _middleware.ts            Passwortsperre: prüft jede Anfrage
-  api/passwort.ts           Passwort setzen und prüfen
+worker/
+  index.ts                  Passwortsperre: prüft JEDE Anfrage
 zutritt/
   gemeinsam.ts              Hash, Ticket, Cookie
+  api.ts                    /api/passwort: setzen und prüfen
   anmeldeseite.ts           Anmelde- und Einrichtungsseite als HTML
+wrangler.jsonc              Worker-Einstellungen und KV-Bindung
 public/
   venice_sunset_1k.hdr      HDRI fürs Umgebungslicht (CC0)
   icon.svg                  Vorlage für alle App-Symbole

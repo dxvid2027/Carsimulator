@@ -1,5 +1,5 @@
 /**
- * Die Anmelde-Schnittstelle.
+ * Die Anmelde-Schnittstelle unter /api/passwort.
  *
  * GET  liefert nur, OB schon ein Passwort gesetzt ist – nie das Passwort
  *      selbst und auch nicht seinen Hash.
@@ -12,13 +12,8 @@ import {
   passwortSetzen,
   passwortStimmt,
   ticketErzeugen,
-  type Umgebung,
-} from '../../zutritt/gemeinsam';
-
-interface Kontext {
-  request: Request;
-  env: Umgebung;
-}
+  type KvSpeicher,
+} from './gemeinsam';
 
 function json(daten: unknown, status = 200, cookie?: string): Response {
   const kopf: Record<string, string> = {
@@ -29,19 +24,19 @@ function json(daten: unknown, status = 200, cookie?: string): Response {
   return new Response(JSON.stringify(daten), { status, headers: kopf });
 }
 
-export async function onRequestGet(kontext: Kontext): Promise<Response> {
-  const kv = kontext.env.PASSWORT;
+/** Beantwortet eine Anfrage an /api/passwort. */
+export async function passwortSchnittstelle(
+  request: Request,
+  kv: KvSpeicher | undefined,
+): Promise<Response> {
   if (!kv) return json({ ok: false, meldung: 'Storage not configured.' }, 503);
-  return json({ gesetzt: await passwortGesetzt(kv) });
-}
 
-export async function onRequestPost(kontext: Kontext): Promise<Response> {
-  const kv = kontext.env.PASSWORT;
-  if (!kv) return json({ ok: false, meldung: 'Storage not configured.' }, 503);
+  if (request.method === 'GET') return json({ gesetzt: await passwortGesetzt(kv) });
+  if (request.method !== 'POST') return json({ ok: false, meldung: 'Method not allowed.' }, 405);
 
   let passwort = '';
   try {
-    const koerper = (await kontext.request.json()) as { passwort?: unknown };
+    const koerper = (await request.json()) as { passwort?: unknown };
     if (typeof koerper.passwort === 'string') passwort = koerper.passwort;
   } catch {
     return json({ ok: false, meldung: 'Bad request.' }, 400);

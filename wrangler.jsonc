@@ -1,0 +1,47 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+
+  // Name des Workers bei Cloudflare – muss zum Projekt im Dashboard passen.
+  "name": "carsimulator",
+
+  // Einstiegspunkt: der Türsteher, der jede Anfrage prüft.
+  "main": "worker/index.ts",
+
+  "compatibility_date": "2025-08-01",
+
+  "assets": {
+    // Das gebaute Spiel. `npm run build` legt es hier ab.
+    "directory": "./dist",
+
+    // Über diese Bindung holt der Worker die Dateien (env.ASSETS.fetch).
+    "binding": "ASSETS",
+
+    /*
+      Der wichtigste Schalter für die Passwortsperre.
+
+      Normalerweise liefert Cloudflare eine vorhandene Datei sofort aus, ohne
+      den Worker zu fragen – die Spieldateien wären damit ohne Passwort
+      abrufbar. Mit `run_worker_first` läuft ZUERST der Worker und entscheidet,
+      ob die Datei überhaupt herausgegeben wird.
+    */
+    "run_worker_first": true
+  },
+
+  /*
+    Speicher für Passwort-Hash und Cookie-Geheimnis.
+
+    Die `id` steht in Cloudflare unter Storage & Databases -> KV beim
+    Namespace. Sie ist kein Geheimnis: Ohne Zugang zum Konto kann damit
+    niemand etwas anfangen.
+
+    Wichtig: Bei einem über Git verbundenen Worker ist DIESE Datei
+    maßgeblich. Eine nur im Dashboard angelegte Bindung wird beim nächsten
+    Deployment überschrieben – deshalb muss die id hier stehen.
+  */
+  "kv_namespaces": [
+    {
+      "binding": "PASSWORT",
+      "id": "HIER_DIE_KV_ID_EINSETZEN"
+    }
+  ]
+}

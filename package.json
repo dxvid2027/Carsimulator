@@ -17,7 +17,7 @@
     "wege": "tsx tools/wege-test.ts",
     "orte": "tsx tools/orte-test.ts",
     "icons": "tsx tools/icons-bauen.ts",
-    "sperre": "npm run build && wrangler pages dev dist --kv PASSWORT --port 8788"
+    "sperre": "npm run build && wrangler dev --port 8788"
   },
   "dependencies": {
     "@dimforge/rapier3d-compat": "0.19.2",

@@ -25,10 +25,22 @@ export interface KvSpeicher {
   put(schluessel: string, wert: string): Promise<void>;
 }
 
-/** Die Bindungen, die Cloudflare der Function mitgibt. */
+/** Der Zugriff auf die statischen Dateien (das gebaute Spiel in `dist`). */
+export interface Dateien {
+  fetch(request: Request): Promise<Response>;
+}
+
+/** Die Bindungen, die Cloudflare dem Worker mitgibt. */
 export interface Umgebung {
-  /** KV-Namespace, in den Passwort und Cookie-Geheimnis geschrieben werden. */
+  /**
+   * KV-Namespace, in den Passwort und Cookie-Geheimnis geschrieben werden.
+   *
+   * Optional, weil die Bindung fehlen kann – dann zeigt die Seite eine
+   * Einrichtungsanleitung statt des Spiels.
+   */
   PASSWORT?: KvSpeicher;
+  /** Wird von Cloudflare automatisch bereitgestellt (siehe wrangler.jsonc). */
+  ASSETS: Dateien;
 }
 
 /** Name des Tickets im Browser. */
